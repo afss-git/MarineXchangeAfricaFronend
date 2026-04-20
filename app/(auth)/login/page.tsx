@@ -109,15 +109,9 @@ function LoginForm() {
       {/* Right Panel */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center px-6 py-12 bg-white">
         {/* Mobile Logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-white">
-            <Image src="/logo.jpeg" alt="Harbours360" width={40} height={40} className="w-full h-full object-contain" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-bold tracking-tight">
-              <span className="text-navy">Harbours</span>
-              <span className="text-ocean">360</span>
-            </span>
+        <div className="lg:hidden mb-8">
+          <div className="rounded-lg overflow-hidden bg-white border border-border px-3 py-1.5 inline-flex">
+            <Image src="/logo.png" alt="Harbours360" width={140} height={36} className="h-8 w-auto object-contain" />
           </div>
         </div>
 

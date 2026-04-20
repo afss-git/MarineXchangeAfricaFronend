@@ -301,13 +301,9 @@ export default function DashboardLayout({
         )}
       >
         {/* Logo */}
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
-          <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-white/10">
-            <Image src="/logo.jpeg" alt="Harbours360" width={36} height={36} className="w-full h-full object-contain" />
-          </div>
-          <div className="flex items-baseline tracking-tight">
-            <span className="text-lg font-extrabold text-white">Harbours</span>
-            <span className="text-lg font-extrabold text-ocean">360</span>
+        <div className="flex items-center px-5 py-4 border-b border-white/10">
+          <div className="rounded-lg overflow-hidden bg-white px-2 py-1 flex items-center">
+            <Image src="/logo.png" alt="Harbours360" width={120} height={32} className="h-7 w-auto object-contain" />
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
