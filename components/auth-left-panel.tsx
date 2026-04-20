@@ -27,8 +27,8 @@ export function AuthLeftPanel({ heading, description, benefits }: AuthLeftPanelP
       <div className="relative z-10 max-w-md">
         {/* Logo */}
         <div className="flex items-center gap-2 mb-12">
-          <div className="w-10 h-10 flex items-center justify-center">
-            <Image src="/logo-icon.png" alt="Harbours360" width={40} height={40} className="w-full h-full object-contain" />
+          <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center">
+            <Image src="/logo-icon.png" alt="Harbours360" width={40} height={40} className="w-full h-full object-cover" />
           </div>
           <div className="flex flex-col">
             <span className="text-xl font-bold tracking-tight">

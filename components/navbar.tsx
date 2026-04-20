@@ -33,8 +33,8 @@ export function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 flex items-center justify-center">
-              <Image src="/logo-icon.png" alt="Harbours360" width={32} height={32} className="w-full h-full object-contain" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
+              <Image src="/logo-icon.png" alt="Harbours360" width={32} height={32} className="w-full h-full object-cover" />
             </div>
             <span className="font-extrabold text-lg tracking-tight leading-none">
               <span className={`transition-colors duration-300 ${isScrolled ? "text-navy" : "text-white"}`}>Harbours</span>

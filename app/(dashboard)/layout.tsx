@@ -302,8 +302,8 @@ export default function DashboardLayout({
       >
         {/* Logo */}
         <div className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
-          <div className="w-9 h-9 flex items-center justify-center">
-            <Image src="/logo-icon.png" alt="Harbours360" width={36} height={36} className="w-full h-full object-contain" />
+          <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center">
+            <Image src="/logo-icon.png" alt="Harbours360" width={36} height={36} className="w-full h-full object-cover" />
           </div>
           <div className="flex items-baseline tracking-tight">
             <span className="text-lg font-extrabold text-white">Harbours</span>
