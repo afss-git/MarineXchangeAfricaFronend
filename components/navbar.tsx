@@ -32,10 +32,14 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center shrink-0">
-            <div className="rounded-lg overflow-hidden bg-white px-2 py-1">
-              <Image src="/logo.png" alt="Harbours360" width={120} height={32} className="h-7 w-auto object-contain" />
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 flex items-center justify-center">
+              <Image src="/logo-icon.png" alt="Harbours360" width={32} height={32} className="w-full h-full object-contain" />
             </div>
+            <span className="font-extrabold text-lg tracking-tight leading-none">
+              <span className={`transition-colors duration-300 ${isScrolled ? "text-navy" : "text-white"}`}>Harbours</span>
+              <span className="text-ocean">360</span>
+            </span>
           </Link>
 
           {/* Desktop nav */}
