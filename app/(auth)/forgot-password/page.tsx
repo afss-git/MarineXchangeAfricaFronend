@@ -3,40 +3,71 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Mail } from "lucide-react"
+import { ArrowLeft, Mail, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 import { AuthLeftPanel } from "@/components/auth-left-panel"
+import { ApiRequestError } from "@/lib/api"
 
-const SUPPORT_EMAIL = "cobwebb784@gmail.com"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
 
-  function handleSubmit(e: React.SyntheticEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address.")
       return
     }
-    const subject = encodeURIComponent("Password Reset Request — Harbours360")
-    const body = encodeURIComponent(
-      `Hi,\n\nI would like to reset my password for the following account:\n\nEmail: ${email.trim()}\n\nPlease send me a reset link.\n\nThank you.`
-    )
-    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`
+
+    setError("")
+    setIsLoading(true)
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      })
+
+      // The endpoint always returns 200 — read body to confirm success
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        const detail = body?.detail
+        throw new ApiRequestError(res.status, body ?? { detail: `Request failed (${res.status})` })
+      }
+
+      setSent(true)
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        if (err.status === 429) {
+          setError("Too many requests. Please wait a few minutes before trying again.")
+        } else {
+          setError(err.message || "Something went wrong. Please try again.")
+        }
+      } else {
+        setError("Could not reach the server. Please check your connection and try again.")
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <>
       <AuthLeftPanel
         heading="Reset Your Password"
-        description="Send us your registered email and our team will get you back into your account within one business day."
+        description="Enter your email and we'll send you a secure, one-time reset link valid for 1 hour."
         benefits={[
-          "Secure account recovery",
-          "Response within 1 business day",
-          "Your data is always protected",
+          "Secure, time-limited reset link",
+          "No password exposed in email",
+          "One-time use — link invalidates after use",
         ]}
       />
 
@@ -53,50 +84,105 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="w-full max-w-105">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-text-primary mb-2">Forgot your password?</h2>
-            <p className="text-text-secondary text-sm leading-relaxed">
-              Enter your email below. This will open your email client with a pre-filled recovery request to our support team.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="p-3 rounded-lg bg-danger/10 border border-danger/20">
-                <p className="text-danger text-sm">{error}</p>
+          {sent ? (
+            /* ── Success state ─────────────────────────────────── */
+            <div className="text-center space-y-5">
+              <div className="flex justify-center">
+                <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-success" />
+                </div>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Registered email address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@company.com"
-                value={email}
-                onChange={e => { setEmail(e.target.value); setError("") }}
-                autoComplete="email"
-              />
+              <div>
+                <h2 className="text-2xl font-bold text-text-primary mb-2">Check your inbox</h2>
+                <p className="text-text-secondary text-sm leading-relaxed">
+                  If <span className="font-medium text-text-primary">{email}</span> is registered,
+                  you will receive a password reset link within a few minutes.
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-ocean/5 border border-ocean/15 text-left space-y-1.5">
+                <p className="text-xs font-semibold text-text-primary">Didn&apos;t get the email?</p>
+                <ul className="text-xs text-text-secondary space-y-1 list-disc list-inside">
+                  <li>Check your spam or junk folder</li>
+                  <li>Make sure you entered the correct email</li>
+                  <li>The link expires in 1 hour — request a new one if needed</li>
+                </ul>
+              </div>
+              <div className="pt-2 space-y-3">
+                <Button
+                  variant="outline"
+                  className="w-full h-10 text-sm"
+                  onClick={() => { setSent(false); setEmail("") }}
+                >
+                  Try a different email
+                </Button>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center gap-1.5 text-sm text-text-secondary hover:text-navy transition-colors w-full"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+                </Link>
+              </div>
             </div>
+          ) : (
+            /* ── Request form ──────────────────────────────────── */
+            <>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-text-primary mb-2">Forgot your password?</h2>
+                <p className="text-text-secondary text-sm leading-relaxed">
+                  Enter your registered email and we&apos;ll send you a secure reset link.
+                </p>
+              </div>
 
-            <Button
-              type="submit"
-              className="w-full bg-ocean hover:bg-ocean-dark text-white h-11 gap-2"
-            >
-              <Mail className="w-4 h-4" />
-              Send Recovery Request
-            </Button>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {error && (
+                  <div className="p-3 rounded-lg bg-danger/10 border border-danger/20">
+                    <p className="text-danger text-sm">{error}</p>
+                  </div>
+                )}
 
-            <p className="text-center text-xs text-text-secondary">
-              Opens your email client pre-filled and ready to send.
-            </p>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Registered email address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@company.com"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); setError("") }}
+                    autoComplete="email"
+                    disabled={isLoading}
+                    className={error ? "border-danger focus-visible:ring-danger/20" : ""}
+                  />
+                </div>
 
-            <div className="text-center pt-2">
-              <Link href="/login" className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-navy transition-colors">
-                <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
-              </Link>
-            </div>
-          </form>
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-ocean hover:bg-ocean-dark text-white h-11 gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Spinner className="mr-2" />
+                      Sending reset link...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4" />
+                      Send Reset Link
+                    </>
+                  )}
+                </Button>
+
+                <div className="text-center pt-2">
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-navy transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+                  </Link>
+                </div>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </>
