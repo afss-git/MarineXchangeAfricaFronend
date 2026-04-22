@@ -82,6 +82,8 @@ export default function ProfilePage() {
   const [upgrading, setUpgrading] = useState(false)
   const [upgradeSuccess, setUpgradeSuccess] = useState(false)
   const [upgradeError, setUpgradeError] = useState<string | null>(null)
+  const [upgradeCompany, setUpgradeCompany] = useState("")
+  const [upgradeRegNo, setUpgradeRegNo] = useState("")
 
   // Notification prefs (local only — no backend endpoint yet)
   const [notifs, setNotifs] = useState({
@@ -101,6 +103,8 @@ export default function ProfilePage() {
       setCountry(user.country ?? "")
       setCompany(user.company_name ?? "")
       setRegNo(user.company_reg_no ?? "")
+      setUpgradeCompany(user.company_name ?? "")
+      setUpgradeRegNo(user.company_reg_no ?? "")
       setAvatarUrl(user.avatar_url)
       setRoles(user.roles ?? [])
       setKycStatus(user.kyc_status)
@@ -172,10 +176,18 @@ export default function ProfilePage() {
   }
 
   const handleUpgradeToSeller = async () => {
+    if (upgradeCompany.trim().length < 2) {
+      setUpgradeError("Company name must be at least 2 characters.")
+      return
+    }
+    if (upgradeRegNo.trim().length < 2) {
+      setUpgradeError("Company registration number must be at least 2 characters.")
+      return
+    }
     setUpgrading(true)
     setUpgradeError(null)
     try {
-      await authBuyer.addSellerRole()
+      await authBuyer.addSellerRole({ company_name: upgradeCompany.trim(), company_reg_no: upgradeRegNo.trim() })
       setRoles((prev) => [...prev, "seller"])
       setUpgradeSuccess(true)
     } catch (e) {
@@ -315,7 +327,7 @@ export default function ProfilePage() {
 
           {/* Upgrade to Seller */}
           {isBuyerOnly && !upgradeSuccess && (
-            <div data-tour="profile-upgrade-seller" className="p-4 rounded-xl border border-ocean/30 bg-ocean/5 space-y-2">
+            <div data-tour="profile-upgrade-seller" className="p-4 rounded-xl border border-ocean/30 bg-ocean/5 space-y-3">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-ocean" />
                 <p className="text-sm font-semibold text-text-primary">Sell on Harbours360</p>
@@ -323,6 +335,26 @@ export default function ProfilePage() {
               <p className="text-xs text-text-secondary">
                 Add a Seller role to your account to list fishing vessels, equipment, and marine products on the platform.
               </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Company Name</Label>
+                  <Input
+                    value={upgradeCompany}
+                    onChange={(e) => { setUpgradeCompany(e.target.value); setUpgradeError(null) }}
+                    placeholder="e.g. Harbours Trading Ltd"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Company Registration No.</Label>
+                  <Input
+                    value={upgradeRegNo}
+                    onChange={(e) => { setUpgradeRegNo(e.target.value); setUpgradeError(null) }}
+                    placeholder="e.g. RC-1234567"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
               {upgradeError && (
                 <div className="flex items-center gap-2 text-danger text-xs">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {upgradeError}

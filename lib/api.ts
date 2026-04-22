@@ -2355,8 +2355,11 @@ export const authAgent = {
 }
 
 export const authBuyer = {
-  addSellerRole: () =>
-    request<MessageResponse>("/auth/buyer/add-seller-role", { method: "POST" }),
+  addSellerRole: (data: { company_name: string; company_reg_no: string }) =>
+    request<UserProfile>("/auth/buyer/add-seller-role", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 }
 
 // ── Marketplace Admin types ───────────────────────────────────────────────────
