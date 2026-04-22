@@ -77,6 +77,30 @@ function fileSizeLabel(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+async function openDocument(url: string, storagePath?: string, filename?: string) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const rawBlob = await res.blob()
+    const ext = (storagePath ?? "").split(".").pop()?.toLowerCase() ?? ""
+    const mimeMap: Record<string, string> = {
+      pdf: "application/pdf",
+      doc: "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
+    const type = mimeMap[ext] ?? rawBlob.type ?? "application/octet-stream"
+    const blob = new Blob([await rawBlob.arrayBuffer()], { type })
+    const blobUrl = URL.createObjectURL(blob)
+    const win = window.open(blobUrl, "_blank")
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000)
+    if (!win) {
+      const a = document.createElement("a")
+      a.href = blobUrl; a.download = filename ?? storagePath?.split("/").pop() ?? "document"
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    }
+  } catch { window.open(url, "_blank", "noopener,noreferrer") }
+}
+
 // ── Status configs ─────────────────────────────────────────────────────────────
 
 const KYC_CFG: Record<string, { label: string; className: string; icon: React.ElementType }> = {
@@ -206,14 +230,12 @@ function KycSubmissionDetail({ subId, onDecided }: { subId: string; onDecided: (
                     {doc.original_name ?? "—"} · {fileSizeLabel(doc.file_size_bytes)} · {fmtDateTime(doc.uploaded_at)}
                   </p>
                 </div>
-                <a
-                  href={doc.signed_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => openDocument(doc.signed_url, doc.storage_path, doc.original_name ?? undefined)}
                   className="flex items-center gap-1 text-xs text-ocean hover:underline shrink-0 font-medium"
                 >
                   <Eye className="w-3.5 h-3.5" /> View
-                </a>
+                </button>
               </div>
             ))}
           </div>

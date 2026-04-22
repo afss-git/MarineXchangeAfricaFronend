@@ -85,6 +85,44 @@ function fmtMoney(amount: string | number, currency: string) {
   return `${parseFloat(String(amount)).toLocaleString()} ${currency}`
 }
 
+// Derive MIME type from a storage path extension
+function mimeFromPath(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase() ?? ""
+  const map: Record<string, string> = {
+    pdf:  "application/pdf",
+    doc:  "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    jpg:  "image/jpeg", jpeg: "image/jpeg",
+    png:  "image/png",  webp: "image/webp",
+  }
+  return map[ext] ?? "application/octet-stream"
+}
+
+// Fetches a document URL and opens it in a new tab with the correct MIME type.
+// Supabase Storage can omit Content-Type on signed URLs; this forces the browser
+// to treat the blob as the right type so PDFs render in the built-in viewer
+// instead of displaying as raw binary text.
+async function openDocument(url: string, storagePath?: string, filename?: string) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const rawBlob = await res.blob()
+    const type = storagePath ? mimeFromPath(storagePath) : (rawBlob.type || "application/octet-stream")
+    const blob = new Blob([await rawBlob.arrayBuffer()], { type })
+    const blobUrl = URL.createObjectURL(blob)
+    const win = window.open(blobUrl, "_blank")
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000)
+    if (!win) {
+      const a = document.createElement("a")
+      a.href = blobUrl
+      a.download = filename ?? storagePath?.split("/").pop() ?? "document"
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    }
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer")
+  }
+}
+
 // ── Status configs ─────────────────────────────────────────────────────────────
 
 const LISTING_CFG: Record<string, { label: string; className: string }> = {
@@ -1005,8 +1043,9 @@ function ListingDetailPanel({ listing, onActionDone }: { listing: Listing; onAct
         ) : (
           <div className="space-y-2">
             {sellerDocs.map((doc) => (
-              <a key={doc.id} href={doc.signed_url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-border hover:bg-white hover:border-ocean/30 hover:shadow-sm transition-all">
+              <button key={doc.id}
+                onClick={() => openDocument(doc.signed_url, doc.storage_path, doc.original_name ?? undefined)}
+                className="w-full text-left flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-border hover:bg-white hover:border-ocean/30 hover:shadow-sm transition-all">
                 <div className="w-9 h-9 rounded-lg bg-ocean/10 flex items-center justify-center shrink-0">
                   <FileText className="w-4 h-4 text-ocean" />
                 </div>
@@ -1021,7 +1060,7 @@ function ListingDetailPanel({ listing, onActionDone }: { listing: Listing; onAct
                 <div className="flex items-center gap-1 text-xs text-ocean font-medium shrink-0">
                   <Download className="w-3.5 h-3.5" />
                 </div>
-              </a>
+              </button>
             ))}
           </div>
         )}
@@ -1241,8 +1280,9 @@ function ListingDetailPanel({ listing, onActionDone }: { listing: Listing; onAct
                     </p>
                     <div className="space-y-2">
                       {evidenceDocs.map((ev) => (
-                        <a key={ev.id} href={ev.signed_url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-border hover:bg-white hover:border-ocean/30 hover:shadow-sm transition-all">
+                        <button key={ev.id}
+                          onClick={() => openDocument(ev.signed_url, ev.storage_path)}
+                          className="w-full text-left flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-border hover:bg-white hover:border-ocean/30 hover:shadow-sm transition-all">
                           <div className="w-9 h-9 rounded-lg bg-ocean/10 flex items-center justify-center shrink-0">
                             <FileText className="w-4 h-4 text-ocean" />
                           </div>
@@ -1255,7 +1295,7 @@ function ListingDetailPanel({ listing, onActionDone }: { listing: Listing; onAct
                           <div className="flex items-center gap-1 text-xs text-ocean font-medium shrink-0">
                             <Download className="w-3.5 h-3.5" />
                           </div>
-                        </a>
+                        </button>
                       ))}
                     </div>
                   </div>
