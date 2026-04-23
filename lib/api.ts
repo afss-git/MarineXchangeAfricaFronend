@@ -2522,6 +2522,9 @@ export const marketplaceAdmin = {
     request<MessageResponse>(`/marketplace/admin/products/${productId}/images/${imageId}`, {
       method: "DELETE",
     }),
+
+  deleteProduct: (productId: string) =>
+    request<MessageResponse>(`/marketplace/admin/products/${productId}`, { method: "DELETE" }),
 }
 
 // ── Seller verification status (visible to listing owner) ─────────────────────

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Store, Clock, CheckCircle2, XCircle, Eye, RefreshCw, Search,
   AlertCircle, Loader2, Package, ChevronDown, ChevronUp,
-  UserCheck, AlertTriangle, Ban, FileText, PhoneCall,
+  UserCheck, AlertTriangle, Ban, FileText, PhoneCall, Trash2,
   CalendarClock, ClipboardCheck, ThumbsUp, ThumbsDown, HelpCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -201,6 +201,11 @@ function ProductPanel({ item, onActioned }: {
   const [delistError, setDelistError]   = useState<string | null>(null)
   const [delisted, setDelisted]         = useState(false)
 
+  // Delete
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting]           = useState(false)
+  const [deleteError, setDeleteError]     = useState<string | null>(null)
+
   useEffect(() => {
     marketplaceAdmin.get(item.id)
       .then((d) => {
@@ -255,6 +260,15 @@ function ProductPanel({ item, onActioned }: {
       setDelisted(true); onActioned()
     } catch (e: unknown) { setDelistError((e as Error)?.message ?? "Failed to delist") }
     finally { setDelisting(false) }
+  }
+
+  async function handleDelete() {
+    setDeleting(true); setDeleteError(null)
+    try {
+      await marketplaceAdmin.deleteProduct(item.id)
+      onActioned()
+    } catch (e: unknown) { setDeleteError((e as Error)?.message ?? "Failed to delete listing"); setConfirmDelete(false) }
+    finally { setDeleting(false) }
   }
 
   if (loading) return (
@@ -502,6 +516,34 @@ function ProductPanel({ item, onActioned }: {
           )}
         </div>
       )}
+
+      {/* Admin Delete */}
+      <div className="px-5 py-4 border-t border-border space-y-2">
+        <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Delete Listing</p>
+        <p className="text-xs text-text-secondary">Permanently removes this listing. Not allowed if an active deal exists.</p>
+        {deleteError && <ErrorBar msg={deleteError} />}
+        {!confirmDelete ? (
+          <Button
+            size="sm" variant="outline"
+            onClick={() => setConfirmDelete(true)}
+            className="text-danger border-danger/30 hover:bg-danger/5 gap-1.5"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Delete Listing
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-danger font-medium">Are you sure? This cannot be undone.</span>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} disabled={deleting}
+              className="h-7 px-2 text-xs text-text-secondary">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleDelete} disabled={deleting}
+              className="h-7 px-2 text-xs bg-danger hover:bg-danger/90 text-white">
+              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirm Delete"}
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
