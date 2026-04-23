@@ -2160,7 +2160,10 @@ function buildDateQuery(from: string, to: string) {
 }
 
 async function exportCsv(path: string): Promise<void> {
-  const res = await fetch(`${API_BASE}${path}`, { credentials: "include" })
+  const token = getAccessToken()
+  const headers: Record<string, string> = {}
+  if (token) headers["Authorization"] = `Bearer ${token}`
+  const res = await fetch(`${API_BASE}${path}`, { headers, credentials: "include" })
   if (!res.ok) throw new Error(`Export failed: ${res.status}`)
   const blob = await res.blob()
   const objectUrl = URL.createObjectURL(blob)

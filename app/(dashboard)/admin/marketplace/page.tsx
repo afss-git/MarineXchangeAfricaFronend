@@ -208,7 +208,19 @@ function DocRow({ doc, watermark }: { doc: import("@/lib/api").ProductDocument |
               backgroundRepeat: "repeat",
             }} />
           )}
-          <iframe src={doc.signed_url} className="w-full h-full border-0" style={{ opacity: watermark ? 0.75 : 1 }} title={name} />
+          <object
+            data={doc.signed_url}
+            type="application/pdf"
+            className="w-full h-full border-0"
+            style={{ opacity: watermark ? 0.75 : 1 }}
+          >
+            <p className="text-white text-sm p-4">
+              PDF cannot be displayed inline.{" "}
+              <a href={doc.signed_url} target="_blank" rel="noopener noreferrer" className="underline">
+                Open in new tab
+              </a>
+            </p>
+          </object>
         </div>
       )}
       {open && isImage && (

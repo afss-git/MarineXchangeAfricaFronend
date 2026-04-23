@@ -500,12 +500,17 @@ function AssignmentPanel({ item, onReported }: {
                         backgroundRepeat: "repeat",
                       }}
                     />
-                    <iframe
-                      src={doc.signed_url}
+                    <object
+                      data={doc.signed_url}
+                      type="application/pdf"
                       className="w-full h-full"
                       style={{ opacity: 0.72, border: "none" }}
-                      title={doc.original_name ?? "Document"}
-                    />
+                    >
+                      <p className="text-white text-xs p-3">
+                        PDF cannot be displayed inline.{" "}
+                        <a href={doc.signed_url} target="_blank" rel="noopener noreferrer" className="underline">Open ↗</a>
+                      </p>
+                    </object>
                   </div>
                 )}
               </div>
