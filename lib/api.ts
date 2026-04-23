@@ -2480,6 +2480,9 @@ export const marketplaceAdmin = {
       method: "POST", body: JSON.stringify({ reason: reason ?? null }),
     }),
 
+  relist: (id: string) =>
+    request<MessageResponse>(`/marketplace/admin/products/${id}/relist`, { method: "POST" }),
+
   pendingApproval: (params?: { page?: number; page_size?: number }) => {
     const qs = new URLSearchParams()
     if (params) Object.entries(params).forEach(([k, v]) => {

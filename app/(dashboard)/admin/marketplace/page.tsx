@@ -201,6 +201,11 @@ function ProductPanel({ item, onActioned }: {
   const [delistError, setDelistError]   = useState<string | null>(null)
   const [delisted, setDelisted]         = useState(false)
 
+  // Relist
+  const [relisting, setRelisting]       = useState(false)
+  const [relistError, setRelistError]   = useState<string | null>(null)
+  const [relisted, setRelisted]         = useState(false)
+
   // Delete
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting]           = useState(false)
@@ -262,6 +267,15 @@ function ProductPanel({ item, onActioned }: {
     finally { setDelisting(false) }
   }
 
+  async function handleRelist() {
+    setRelisting(true); setRelistError(null)
+    try {
+      await marketplaceAdmin.relist(item.id)
+      setRelisted(true); onActioned()
+    } catch (e: unknown) { setRelistError((e as Error)?.message ?? "Failed to re-list") }
+    finally { setRelisting(false) }
+  }
+
   async function handleDelete() {
     setDeleting(true); setDeleteError(null)
     try {
@@ -279,9 +293,10 @@ function ProductPanel({ item, onActioned }: {
   if (error) return <div className="p-5 border-t border-border"><ErrorBar msg={error} /></div>
   if (!detail) return null
 
-  const canDecide = ["pending_approval"].includes(detail.status)
-  const canAssign = ["submitted", "pending_verification"].includes(detail.status)
-  const canDelist = ["active", "approved"].includes(detail.status)
+  const canDecide  = ["pending_approval"].includes(detail.status)
+  const canAssign  = ["submitted", "pending_verification"].includes(detail.status)
+  const canDelist  = ["active", "approved"].includes(detail.status)
+  const canRelist  = detail.status === "delisted"
 
   return (
     <div className="border-t border-border">
@@ -546,6 +561,30 @@ function ProductPanel({ item, onActioned }: {
                 </Button>
               </div>
               {delistError && <ErrorBar msg={delistError} />}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Re-list */}
+      {canRelist && (
+        <div className="px-5 py-4 border-t border-border space-y-3">
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Re-list Listing</p>
+          {relisted ? (
+            <p className="text-sm text-success flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" /> Listing is now active again.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-text-secondary">Restore this delisted listing to active status so it appears in the public marketplace.</p>
+              <Button
+                onClick={handleRelist} disabled={relisting} size="sm"
+                className="bg-success hover:bg-success/90 text-white gap-1.5"
+              >
+                {relisting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                {relisting ? "Re-listing…" : "Re-list as Active"}
+              </Button>
+              {relistError && <ErrorBar msg={relistError} />}
             </>
           )}
         </div>
