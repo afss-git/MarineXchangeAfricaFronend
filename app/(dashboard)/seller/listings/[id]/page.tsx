@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ChevronLeft,
@@ -390,6 +390,7 @@ function VerificationHistory({ events }: { events: ProductTimelineEvent[] }) {
 
 export default function EditListingPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
 
   const [listing, setListing]   = useState<ProductDetail | null>(null)
@@ -412,6 +413,8 @@ export default function EditListingPage() {
   const [isSaving, setIsSaving]         = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [saveMsg, setSaveMsg]           = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [isDeleting, setIsDeleting]       = useState(false)
 
   // Verification audit state
   const [verif, setVerif]         = useState<SellerVerificationStatus | null>(null)
@@ -546,6 +549,22 @@ export default function EditListingPage() {
     }
   }
 
+  // ── Delete listing ───────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      await sellerApi.deleteListing(id)
+      router.push("/seller/listings")
+    } catch (e) {
+      setSaveMsg({ type: "error", text: e instanceof ApiRequestError ? e.message : "Failed to delete listing." })
+      setConfirmDelete(false)
+      setTimeout(() => setSaveMsg(null), 4000)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // ── Image: upload ────────────────────────────────────────────────────────────
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -662,6 +681,8 @@ export default function EditListingPage() {
   // Editable: draft, pending_reverification, OR pending_verification with no agent yet
   const canEdit   = status === "draft" || status === "pending_reverification" ||
                     (status === "pending_verification" && !agentAssigned)
+  // Seller can delete only while no agent is assigned and the listing hasn't been approved/sold
+  const canDelete = !agentAssigned && !["active", "sold", "pending_approval"].includes(status)
   const canSubmit = status === "draft" || status === "rejected" || status === "pending_reverification" || status === "verification_failed"
   const isActive  = status === "active"
   // Lock form once agent is assigned or in final review states
@@ -692,6 +713,39 @@ export default function EditListingPage() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {canDelete && !confirmDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmDelete(true)}
+              className="border-danger/30 text-danger hover:bg-danger/5"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Delete
+            </Button>
+          )}
+          {canDelete && confirmDelete && (
+            <div className="flex items-center gap-2 bg-danger/5 border border-danger/20 rounded-lg px-3 py-1.5">
+              <span className="text-xs text-danger font-medium">Delete listing?</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setConfirmDelete(false)}
+                disabled={isDeleting}
+                className="h-6 px-2 text-xs text-text-secondary hover:text-text-primary"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="h-6 px-2 text-xs bg-danger hover:bg-danger/90 text-white"
+              >
+                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirm"}
+              </Button>
+            </div>
+          )}
           {canEdit && (
             <Button
               onClick={handleSave}
