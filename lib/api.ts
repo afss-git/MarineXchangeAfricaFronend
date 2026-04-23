@@ -2159,8 +2159,20 @@ function buildDateQuery(from: string, to: string) {
   return `?from_date=${from}&to_date=${to}`
 }
 
-function exportCsv(url: string) {
-  window.open(url, "_blank", "noopener")
+async function exportCsv(path: string): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, { credentials: "include" })
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`)
+  const blob = await res.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  const disposition = res.headers.get("content-disposition") ?? ""
+  const match = disposition.match(/filename="([^"]+)"/)
+  a.href = objectUrl
+  a.download = match?.[1] ?? "export.csv"
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(objectUrl)
 }
 
 export const reports = {
