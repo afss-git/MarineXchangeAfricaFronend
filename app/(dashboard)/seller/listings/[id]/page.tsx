@@ -24,6 +24,8 @@ import {
   FileSearch,
   ClipboardCheck,
   Lock,
+  FileText,
+  Phone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +45,7 @@ import {
   marketplace as marketplaceApi,
   type ProductDetail,
   type ProductImage,
+  type ProductDocument,
   type SellerVerificationStatus,
   type ProductTimelineEvent,
   type CategoryResponse,
@@ -414,12 +417,24 @@ export default function EditListingPage() {
   const [verif, setVerif]         = useState<SellerVerificationStatus | null>(null)
   const [timeline, setTimeline]   = useState<ProductTimelineEvent[]>([])
 
+  // Contact state
+  const [contactName,  setContactName]  = useState("")
+  const [contactEmail, setContactEmail] = useState("")
+  const [contactPhone, setContactPhone] = useState("")
+
   // Image state
   const [deletingId, setDeletingId]         = useState<string | null>(null)
   const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null)
   const [isUploading, setIsUploading]       = useState(false)
   const [uploadError, setUploadError]       = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Document state
+  const [docs, setDocs]                       = useState<ProductDocument[]>([])
+  const [isDeletingDoc, setIsDeletingDoc]     = useState<string | null>(null)
+  const [isUploadingDoc, setIsUploadingDoc]   = useState(false)
+  const [uploadDocError, setUploadDocError]   = useState<string | null>(null)
+  const docRef = useRef<HTMLInputElement>(null)
 
   // ── Load listing ────────────────────────────────────────────────────────────
 
@@ -430,6 +445,7 @@ export default function EditListingPage() {
       const data = await sellerApi.getListing(id)
       setListing(data)
       setImages(data.images ?? [])
+      setDocs(data.documents ?? [])
       // Pre-fill form
       setTitle(data.title)
       setDescription(data.description ?? "")
@@ -439,6 +455,10 @@ export default function EditListingPage() {
       setLocationCountry(data.location_country ?? "")
       setLocationPort(data.location_port ?? "")
       setCategoryId(data.category_id ?? "")
+      // Contact
+      setContactName(data.contact?.contact_name ?? "")
+      setContactEmail(data.contact?.email ?? "")
+      setContactPhone(data.contact?.phone ?? "")
     } catch (e) {
       setLoadError(e instanceof ApiRequestError ? e.message : "Failed to load listing.")
     } finally {
@@ -480,9 +500,17 @@ export default function EditListingPage() {
         description,
         condition,
         asking_price: Number(askingPrice),
+        currency,
         location_country: locationCountry,
         location_port: locationPort,
         ...(categoryId ? { category_id: categoryId } : {}),
+        ...(contactEmail ? {
+          contact: {
+            contact_name: contactName || title,
+            email: contactEmail,
+            phone: contactPhone || null,
+          },
+        } : {}),
       })
       setListing(updated)
       setSaveMsg({ type: "success", text: "Changes saved successfully." })
@@ -565,6 +593,41 @@ export default function EditListingPage() {
       setTimeout(() => setSaveMsg(null), 4000)
     } finally {
       setSettingPrimaryId(null)
+    }
+  }
+
+  // ── Document: upload ─────────────────────────────────────────────────────────
+
+  const handleUploadDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingDoc(true)
+    setUploadDocError(null)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const newDoc = await sellerApi.uploadDocument(id, fd)
+      setDocs((prev) => [...prev, newDoc])
+    } catch (err) {
+      setUploadDocError(err instanceof ApiRequestError ? err.message : "Upload failed.")
+    } finally {
+      setIsUploadingDoc(false)
+      if (docRef.current) docRef.current.value = ""
+    }
+  }
+
+  // ── Document: delete ──────────────────────────────────────────────────────────
+
+  const handleDeleteDoc = async (docId: string) => {
+    setIsDeletingDoc(docId)
+    try {
+      await sellerApi.deleteDocument(id, docId)
+      setDocs((prev) => prev.filter((d) => d.id !== docId))
+    } catch (err) {
+      setSaveMsg({ type: "error", text: err instanceof ApiRequestError ? err.message : "Failed to delete document." })
+      setTimeout(() => setSaveMsg(null), 4000)
+    } finally {
+      setIsDeletingDoc(null)
     }
   }
 
@@ -908,6 +971,147 @@ export default function EditListingPage() {
               </div>
             )}
           </div>
+
+          {/* Contact Information */}
+          <div className="bg-white rounded-xl border border-border shadow-sm p-6 space-y-5">
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4 text-ocean" />
+              <h2 className="text-base font-semibold text-text-primary">Contact Information</h2>
+            </div>
+            <p className="text-xs text-text-secondary -mt-2">
+              Buyers will use these details to reach you about this listing.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-name">Contact Name</Label>
+                <Input
+                  id="contact-name"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  disabled={!canEdit}
+                  placeholder="Your full name"
+                  className="bg-gray-50/50 disabled:opacity-70"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-phone">Phone Number</Label>
+                <Input
+                  id="contact-phone"
+                  type="tel"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  disabled={!canEdit}
+                  placeholder="+234 800 000 0000"
+                  className="bg-gray-50/50 disabled:opacity-70"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="contact-email">Contact Email</Label>
+              <Input
+                id="contact-email"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                disabled={!canEdit}
+                placeholder="your@email.com"
+                className="bg-gray-50/50 disabled:opacity-70"
+              />
+            </div>
+          </div>
+
+          {/* Technical Documents */}
+          <div className="bg-white rounded-xl border border-border shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-ocean" />
+                <h2 className="text-base font-semibold text-text-primary">Technical Documents</h2>
+              </div>
+              <span className="text-xs text-text-secondary">{docs.length} file{docs.length !== 1 ? "s" : ""}</span>
+            </div>
+            <p className="text-xs text-text-secondary -mt-1">
+              Certificates, surveys, inspection reports — PDF only, max 20 MB each.
+            </p>
+
+            {/* Document list */}
+            {docs.length > 0 && (
+              <div className="space-y-2">
+                {docs.map((doc) => (
+                  <div key={doc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-border">
+                    <FileText className="w-5 h-5 text-ocean shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {doc.original_name ?? "Document"}
+                      </p>
+                      {doc.file_size_bytes && (
+                        <p className="text-xs text-text-secondary">
+                          {doc.file_size_bytes < 1024 * 1024
+                            ? `${Math.round(doc.file_size_bytes / 1024)} KB`
+                            : `${(doc.file_size_bytes / (1024 * 1024)).toFixed(1)} MB`}
+                        </p>
+                      )}
+                    </div>
+                    {doc.signed_url && (
+                      <a
+                        href={doc.signed_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-ocean hover:bg-ocean/5 rounded transition-colors"
+                        title="Open document"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </a>
+                    )}
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDeleteDoc(doc.id)}
+                        disabled={isDeletingDoc === doc.id}
+                        className="p-1.5 text-text-secondary hover:text-danger rounded transition-colors disabled:opacity-50"
+                        title="Delete document"
+                      >
+                        {isDeletingDoc === doc.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload error */}
+            {uploadDocError && (
+              <div className="flex items-center gap-2 p-2.5 bg-danger/10 rounded-lg text-danger text-xs border border-danger/20">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {uploadDocError}
+                <button onClick={() => setUploadDocError(null)} className="ml-auto"><X className="w-3 h-3" /></button>
+              </div>
+            )}
+
+            {/* Upload button */}
+            {canEdit && (
+              <>
+                <input
+                  ref={docRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  className="hidden"
+                  onChange={handleUploadDoc}
+                />
+                <Button
+                  variant="outline"
+                  className="w-full border-dashed"
+                  disabled={isUploadingDoc}
+                  onClick={() => docRef.current?.click()}
+                >
+                  {isUploadingDoc
+                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading…</>
+                    : <><Upload className="w-4 h-4 mr-2" /> Upload Document</>}
+                </Button>
+              </>
+            )}
+          </div>
+
         </div>
 
         {/* Right: Images + Meta */}

@@ -667,11 +667,13 @@ export const seller = {
     title: string
     description: string
     asking_price: number
+    currency: string
     condition: string
     availability_type: string
     location_country: string
     location_port: string
     category_id: string
+    contact: { contact_name: string; email: string; phone?: string | null }
   }>) => request<ProductDetail>(`/marketplace/listings/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
