@@ -700,6 +700,18 @@ export default function AdminMarketplacePage() {
   const [statusFilter, setStatusFilter] = useState("")
   const [expanded, setExpanded]         = useState<string | null>(null)
 
+  const [sendingDigest, setSendingDigest] = useState(false)
+  const [digestMsg, setDigestMsg]         = useState<string | null>(null)
+
+  async function handleSendTestDigest() {
+    setSendingDigest(true); setDigestMsg(null)
+    try {
+      const res = await marketplaceAdmin.sendTestDigest()
+      setDigestMsg(res.message)
+    } catch (e: unknown) { setDigestMsg((e as Error)?.message ?? "Failed") }
+    finally { setSendingDigest(false) }
+  }
+
   const { data, isLoading: loading, error: swrError, mutate } = useAdminListings({
     page, page_size: 20,
     status: statusFilter || undefined,
@@ -740,8 +752,18 @@ export default function AdminMarketplacePage() {
           <Button variant="outline" size="sm" onClick={() => mutate()} disabled={loading} className="gap-1.5">
             <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
           </Button>
+          <Button variant="outline" size="sm" onClick={handleSendTestDigest} disabled={sendingDigest} className="gap-1.5 text-ocean border-ocean/30 hover:bg-ocean/5">
+            {sendingDigest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+            {sendingDigest ? "Sending…" : "Send Digest"}
+          </Button>
         </div>
       </div>
+      {digestMsg && (
+        <div className={cn("flex items-center gap-2 p-3 rounded-xl text-sm border",
+          digestMsg.includes("Digest sent") ? "bg-success/10 border-success/20 text-success" : "bg-danger/10 border-danger/20 text-danger")}>
+          <AlertCircle className="w-4 h-4 shrink-0" />{digestMsg}
+        </div>
+      )}
 
       {/* Status tabs */}
       <div className="flex gap-1 border-b border-border overflow-x-auto">
