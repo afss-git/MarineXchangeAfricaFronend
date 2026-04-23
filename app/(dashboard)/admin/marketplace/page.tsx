@@ -165,6 +165,79 @@ function VerificationReportCard({ report }: { report: import("@/lib/api").Verifi
   )
 }
 
+// ── Inline document viewer ─────────────────────────────────────────────────────
+
+function fmtBytes(n: number | null) {
+  if (!n) return null
+  return n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function DocRow({ doc, watermark }: { doc: import("@/lib/api").ProductDocument | import("@/lib/api").VerificationEvidenceFile; watermark?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const isPdf   = ("mime_type" in doc ? doc.mime_type : null)?.startsWith("application/pdf") ?? doc.signed_url.includes(".pdf")
+  const isImage = ("mime_type" in doc ? doc.mime_type : null)?.startsWith("image/") ?? ("file_type" in doc && doc.file_type === "image")
+  const name    = ("original_name" in doc ? doc.original_name : null) ?? ("description" in doc ? doc.description : null) ?? "Document"
+  const size    = "file_size_bytes" in doc ? fmtBytes(doc.file_size_bytes ?? null) : null
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <div className="flex items-center gap-3 p-2.5 bg-gray-50 hover:bg-gray-100 transition-colors">
+        <FileText className="w-4 h-4 text-ocean shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-text-primary truncate">{name}</p>
+          {size && <p className="text-xs text-text-secondary">{size}</p>}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <a href={doc.signed_url} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-ocean hover:underline px-2 py-1" onClick={(e) => e.stopPropagation()}>
+            Open ↗
+          </a>
+          {(isPdf || isImage) && (
+            <button onClick={() => setOpen((v) => !v)}
+              className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 border-l border-border">
+              {open ? "Hide" : "Preview"}
+            </button>
+          )}
+        </div>
+      </div>
+      {open && isPdf && (
+        <div className="relative bg-gray-800" style={{ height: 520 }}>
+          {watermark && (
+            <div className="absolute inset-0 pointer-events-none z-10" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='100'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14' fill='rgba(255,255,255,0.18)' transform='rotate(-30,150,50)' font-family='sans-serif' font-weight='bold'%3EFOR VERIFICATION ONLY%3C/text%3E%3C/svg%3E")`,
+              backgroundRepeat: "repeat",
+            }} />
+          )}
+          <iframe src={doc.signed_url} className="w-full h-full border-0" style={{ opacity: watermark ? 0.75 : 1 }} title={name} />
+        </div>
+      )}
+      {open && isImage && (
+        <div className="p-3 bg-gray-900 flex items-center justify-center" style={{ maxHeight: 400 }}>
+          <img src={doc.signed_url} alt={name} className="max-w-full max-h-80 object-contain rounded" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SellerDocViewer({ docs, label, watermark }: {
+  docs: (import("@/lib/api").ProductDocument | import("@/lib/api").VerificationEvidenceFile)[]
+  label: string
+  watermark?: boolean
+}) {
+  if (!docs.length) return null
+  return (
+    <div className="px-5 pb-4 border-t border-border pt-4">
+      <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+        {label} ({docs.length})
+      </p>
+      <div className="space-y-2">
+        {docs.map((doc) => <DocRow key={doc.id} doc={doc} watermark={watermark} />)}
+      </div>
+    </div>
+  )
+}
+
 // ── Product detail panel ───────────────────────────────────────────────────────
 
 function ProductPanel({ item, onActioned }: {
@@ -323,9 +396,18 @@ function ProductPanel({ item, onActioned }: {
         ))}
       </div>
 
+      {/* Toolbar — export */}
+      <div className="px-5 py-2 border-b border-border flex items-center gap-2 bg-gray-50/50">
+        <Button size="sm" variant="outline"
+          className="gap-1.5 text-xs h-7"
+          onClick={() => marketplaceAdmin.exportActivityCsv(item.id)}>
+          <FileText className="w-3 h-3" /> Export Activity (CSV)
+        </Button>
+      </div>
+
       {/* Description */}
       {detail.description && (
-        <div className="px-5 pb-4">
+        <div className="px-5 pb-4 pt-3">
           <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1">Description</p>
           <p className="text-sm text-text-primary whitespace-pre-line">{detail.description}</p>
         </div>
@@ -376,6 +458,14 @@ function ProductPanel({ item, onActioned }: {
               {showReport && assignment.report && (
                 <VerificationReportCard report={assignment.report} />
               )}
+
+              {/* Agent evidence files */}
+              {(assignment.evidence_files?.length ?? 0) > 0 && (
+                <SellerDocViewer
+                  docs={assignment.evidence_files}
+                  label="Agent Inspection Evidence"
+                />
+              )}
             </>
           ) : null}
         </div>
@@ -399,36 +489,7 @@ function ProductPanel({ item, onActioned }: {
 
       {/* Seller Documents */}
       {(detail.documents?.length ?? 0) > 0 && (
-        <div className="px-5 pb-4 border-t border-border pt-4">
-          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
-            Seller Documents ({detail.documents.length})
-          </p>
-          <div className="space-y-2">
-            {detail.documents.map((doc) => (
-              <a
-                key={doc.id}
-                href={doc.signed_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg border border-border hover:border-ocean/40 hover:bg-ocean/5 transition-colors group"
-              >
-                <FileText className="w-4 h-4 text-ocean shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate group-hover:text-ocean">
-                    {doc.original_name ?? "Document"}
-                  </p>
-                  {doc.file_size_bytes && (
-                    <p className="text-xs text-text-secondary">
-                      {doc.file_size_bytes < 1024 * 1024
-                        ? `${Math.round(doc.file_size_bytes / 1024)} KB`
-                        : `${(doc.file_size_bytes / (1024 * 1024)).toFixed(1)} MB`}
-                    </p>
-                  )}
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
+        <SellerDocViewer docs={detail.documents} label="Seller Documents" />
       )}
 
       {/* Assign Agent */}

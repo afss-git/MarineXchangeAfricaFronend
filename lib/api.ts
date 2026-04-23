@@ -2528,6 +2528,13 @@ export const marketplaceAdmin = {
 
   deleteProduct: (productId: string) =>
     request<MessageResponse>(`/marketplace/admin/products/${productId}`, { method: "DELETE" }),
+  exportActivityCsv: (productId: string) =>
+    exportCsv(`/marketplace/admin/products/${productId}/activity/export`),
+  sendTestDigest: (recipient?: string) =>
+    request<{ sent: boolean; message: string }>("/marketplace/admin/digest/send-test", {
+      method: "POST",
+      body: JSON.stringify({ recipient: recipient ?? null }),
+    }),
 }
 
 // ── Seller verification status (visible to listing owner) ─────────────────────
