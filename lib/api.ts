@@ -2582,6 +2582,7 @@ export interface VerificationAssignmentDetail extends VerificationAssignmentItem
   seller_phone: string | null; seller_email: string | null
   assigned_by_name: string | null
   images: { id: string; signed_url: string; is_primary: boolean }[]
+  documents: ProductDocument[]
   attribute_values: { attribute_id: string; attribute_name: string; value_text: string | null; value_numeric: number | null; value_boolean: boolean | null }[]
   report: VerificationReportOut | null
   report_submitted: boolean

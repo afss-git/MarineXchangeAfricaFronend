@@ -245,6 +245,9 @@ function AssignmentPanel({ item, onReported }: {
   const [timeline, setTimeline] = useState<ProductTimelineEvent[]>([])
   const [showTimeline, setShowTimeline] = useState(false)
 
+  // Document viewer
+  const [openDocId, setOpenDocId] = useState<string | null>(null)
+
   // Report form
   const [conditionConfirmed, setConditionConfirmed]   = useState("")
   const [priceAssessment, setPriceAssessment]         = useState("")
@@ -435,6 +438,77 @@ function AssignmentPanel({ item, onReported }: {
                   <img src={img.signed_url} alt="" className="w-full h-full object-cover" />
                 </div>
               </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seller Documents — watermarked for verification use only */}
+      {(product.documents?.length ?? 0) > 0 && (
+        <div className="px-5 pb-4 border-t border-border pt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+              Seller Documents ({product.documents.length})
+            </p>
+            <span className="text-[10px] font-bold text-warning bg-warning/10 border border-warning/20 rounded px-1.5 py-0.5 uppercase tracking-wide">
+              Verification Use Only
+            </span>
+          </div>
+          <div className="space-y-2">
+            {product.documents.map((doc) => (
+              <div key={doc.id} className="rounded-lg border border-border overflow-hidden">
+                <button
+                  onClick={() => setOpenDocId(openDocId === doc.id ? null : doc.id)}
+                  className="w-full flex items-center gap-3 p-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                >
+                  <FileText className="w-4 h-4 text-ocean shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">
+                      {doc.original_name ?? "Document"}
+                    </p>
+                    {doc.file_size_bytes && (
+                      <p className="text-xs text-text-secondary">
+                        {doc.file_size_bytes < 1024 * 1024
+                          ? `${Math.round(doc.file_size_bytes / 1024)} KB`
+                          : `${(doc.file_size_bytes / (1024 * 1024)).toFixed(1)} MB`}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-xs text-text-secondary shrink-0">
+                    {openDocId === doc.id ? "Close" : "View"}
+                  </span>
+                </button>
+                {openDocId === doc.id && (
+                  <div
+                    className="relative bg-gray-900"
+                    style={{ height: "600px" }}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
+                    {/* Watermark grid overlay */}
+                    <div
+                      className="absolute inset-0 pointer-events-none z-10"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='160'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' transform='rotate(-35 160 80)' font-family='sans-serif' font-size='18' font-weight='bold' fill='rgba(255%2C255%2C255%2C0.18)' letter-spacing='3'%3EFOR VERIFICATION USE ONLY%3C/text%3E%3C/svg%3E")`,
+                        backgroundRepeat: "repeat",
+                      }}
+                    />
+                    {/* Second watermark layer for denser coverage */}
+                    <div
+                      className="absolute inset-0 pointer-events-none z-10"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='160'%3E%3Ctext x='50%25' y='80%25' text-anchor='middle' dominant-baseline='middle' transform='rotate(-35 160 80)' font-family='sans-serif' font-size='14' font-weight='bold' fill='rgba(255%2C165%2C0%2C0.13)' letter-spacing='2'%3EHARBOURS360 CONFIDENTIAL%3C/text%3E%3C/svg%3E")`,
+                        backgroundRepeat: "repeat",
+                      }}
+                    />
+                    <iframe
+                      src={doc.signed_url}
+                      className="w-full h-full"
+                      style={{ opacity: 0.72, border: "none" }}
+                      title={doc.original_name ?? "Document"}
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>

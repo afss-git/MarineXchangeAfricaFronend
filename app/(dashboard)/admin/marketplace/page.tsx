@@ -382,6 +382,40 @@ function ProductPanel({ item, onActioned }: {
         </div>
       )}
 
+      {/* Seller Documents */}
+      {(detail.documents?.length ?? 0) > 0 && (
+        <div className="px-5 pb-4 border-t border-border pt-4">
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+            Seller Documents ({detail.documents.length})
+          </p>
+          <div className="space-y-2">
+            {detail.documents.map((doc) => (
+              <a
+                key={doc.id}
+                href={doc.signed_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg border border-border hover:border-ocean/40 hover:bg-ocean/5 transition-colors group"
+              >
+                <FileText className="w-4 h-4 text-ocean shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text-primary truncate group-hover:text-ocean">
+                    {doc.original_name ?? "Document"}
+                  </p>
+                  {doc.file_size_bytes && (
+                    <p className="text-xs text-text-secondary">
+                      {doc.file_size_bytes < 1024 * 1024
+                        ? `${Math.round(doc.file_size_bytes / 1024)} KB`
+                        : `${(doc.file_size_bytes / (1024 * 1024)).toFixed(1)} MB`}
+                    </p>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Assign Agent */}
       {canAssign && (
         <div className="px-5 py-4 border-t border-border space-y-3">
