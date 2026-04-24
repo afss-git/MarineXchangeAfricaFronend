@@ -3277,3 +3277,87 @@ export const activityAdmin = {
     return request<ActivityUser[]>(`/admin/activity/users${qs}`)
   },
 }
+
+// ── Documents Hub ─────────────────────────────────────────────────────────────
+
+export interface DocHubItem {
+  doc_type: "deal_document" | "deal_invoice" | "kyc_document" | "payment_evidence"
+  id: string
+  file_name: string
+  doc_category: string
+  description: string | null
+  file_size_bytes: number | null
+  mime_type: string
+  status: string | null
+  created_at: string
+  entity_type: string
+  entity_id: string
+  entity_ref: string | null
+  uploader_name: string
+  uploader_email: string
+}
+
+export interface DocHubResponse {
+  total: number
+  page: number
+  per_page: number
+  pages: number
+  items: DocHubItem[]
+}
+
+export interface DealAllDocuments {
+  deal: {
+    id: string; deal_ref: string; buyer_name: string; buyer_email: string
+    purchase_request_id: string | null
+  }
+  purchase_request: Record<string, unknown> | null
+  deal_documents: {
+    id: string; file_name: string; document_type: string; description: string | null
+    file_size_bytes: number | null; mime_type: string; uploaded_at: string
+    uploader_name: string; uploader_email: string
+    is_visible_to_buyer: boolean; is_visible_to_seller: boolean
+  }[]
+  invoices: {
+    id: string; invoice_ref: string; invoice_type: string; status: string
+    amount: string | null; currency: string; created_at: string; has_pdf: boolean
+    generated_by_name: string; generated_by_email: string
+  }[]
+  payment_evidence: {
+    id: string; file_name: string; file_size_bytes: number | null; mime_type: string
+    uploaded_at: string; uploader_name: string; uploader_email: string
+    schedule_item_label: string | null; installment_number: number | null
+  }[]
+  buyer_kyc_documents: {
+    id: string; file_name: string; document_type_name: string
+    file_size_bytes: number | null; mime_type: string; uploaded_at: string
+    submission_id: string; submission_status: string; kyc_cycle: number
+  }[]
+}
+
+export const documentsHub = {
+  list: (params: {
+    doc_type?: string
+    entity_id?: string
+    search?: string
+    date?: string
+    date_from?: string
+    date_to?: string
+    page?: number
+    per_page?: number
+  }) => {
+    const qs = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.set(k, String(v))
+    })
+    const q = qs.toString() ? `?${qs}` : ""
+    return request<DocHubResponse>(`/admin/documents${q}`)
+  },
+
+  getDealAllDocs: (dealId: string) =>
+    request<DealAllDocuments>(`/admin/documents/deal/${dealId}`),
+
+  getDownloadUrl: (docType: string, docId: string) =>
+    request<{ url: string; file_name: string; expires_in_seconds: number }>(
+      `/admin/documents/${docType}/${docId}/download`
+    ),
+}
