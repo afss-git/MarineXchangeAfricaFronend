@@ -38,6 +38,7 @@ interface Listing {
   verification_agent: string | null; agent_email: string | null
   verification_assignment_id: string | null; description: string | null
   image_count: number; deal_count: number; created_at: string; updated_at: string
+  primary_image_url: string | null
 }
 
 interface Deal {
@@ -1520,8 +1521,10 @@ function ListingsTab({ listings, onRefresh }: { listings: Listing[]; onRefresh: 
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-ocean/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Package className="w-5 h-5 text-ocean" />
+                    <div className="w-10 h-10 rounded-xl bg-ocean/10 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                      {l.primary_image_url
+                        ? <img src={l.primary_image_url} alt="" className="w-full h-full object-cover" />
+                        : <Package className="w-5 h-5 text-ocean" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">

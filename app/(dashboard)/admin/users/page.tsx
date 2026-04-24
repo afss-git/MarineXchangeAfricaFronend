@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { Textarea } from "@/components/ui/textarea"
 import { admin as adminApi, authAdmin, type AdminUserItem, ApiRequestError } from "@/lib/api"
 import { useAdminUsers } from "@/lib/hooks"
 
@@ -384,6 +385,95 @@ function CreateStaffModal({ onClose, onCreated }: CreateStaffModalProps) {
   )
 }
 
+// ── Deactivate Modal ──────────────────────────────────────────────────────────
+
+interface DeactivateModalProps {
+  targets: AdminUserItem[]
+  onClose: () => void
+  onDone: (msg: string) => void
+}
+
+function DeactivateModal({ targets, onClose, onDone }: DeactivateModalProps) {
+  const [reason, setReason] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const isBulk = targets.length > 1
+  const title = isBulk ? `Deactivate ${targets.length} accounts` : `Deactivate ${targets[0]?.full_name ?? targets[0]?.email}`
+
+  const handleSubmit = async () => {
+    if (reason.trim().length < 5) { setError("Reason must be at least 5 characters."); return }
+    setSubmitting(true); setError(null)
+    try {
+      if (isBulk) {
+        await adminApi.bulkDeactivate(targets.map(t => t.id), reason.trim())
+        onDone(`${targets.length} accounts deactivated.`)
+      } else {
+        await adminApi.deactivate(targets[0].id, reason.trim())
+        onDone(`${targets[0].full_name ?? targets[0].email} deactivated.`)
+      }
+      onClose()
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : "Failed to deactivate.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+            <p className="text-sm text-text-secondary mt-0.5">
+              {isBulk ? "These users will no longer be able to log in." : "This user will no longer be able to log in."}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <X className="w-5 h-5 text-text-secondary" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          {isBulk && (
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {targets.map(t => (
+                <span key={t.id} className="text-xs px-2 py-1 bg-danger/10 text-danger rounded-full">{t.full_name ?? t.email}</span>
+              ))}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-text-primary">Reason for deactivation *</Label>
+            <Textarea
+              rows={3}
+              placeholder="e.g. Violation of terms, fraudulent activity..."
+              value={reason}
+              onChange={e => { setReason(e.target.value); setError(null) }}
+              className={cn("resize-none", error ? "border-danger focus-visible:ring-danger/20" : "")}
+            />
+            {error && <p className="text-xs text-danger">{error}</p>}
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-danger/5 border border-danger/20 text-danger text-xs">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>This action can be reversed by an admin at any time.</span>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <Button variant="outline" onClick={onClose} className="flex-1" disabled={submitting}>Cancel</Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex-1 bg-danger hover:bg-danger/90 text-white"
+            >
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {submitting ? "Deactivating…" : isBulk ? `Deactivate ${targets.length} Accounts` : "Deactivate Account"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminUsersPage() {
@@ -395,6 +485,7 @@ export default function AdminUsersPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [deactivateTargets, setDeactivateTargets] = useState<AdminUserItem[] | null>(null)
 
   const PAGE_SIZE = 20
 
@@ -415,17 +506,8 @@ export default function AdminUsersPage() {
   const total = data?.total ?? 0
   const error = swrError?.message ?? null
 
-  const handleDeactivate = async (user: AdminUserItem) => {
-    const reason = prompt(`Reason for deactivating ${user.full_name ?? user.email}:`)
-    if (!reason || reason.trim().length < 5) return
-    try {
-      await adminApi.deactivate(user.id, reason)
-      mutate()
-      setActionMsg({ type: "success", text: `${user.full_name ?? user.email} deactivated.` })
-    } catch (e) {
-      setActionMsg({ type: "error", text: e instanceof ApiRequestError ? e.message : "Failed to deactivate." })
-    }
-    setTimeout(() => setActionMsg(null), 3000)
+  const handleDeactivate = (user: AdminUserItem) => {
+    setDeactivateTargets([user])
   }
 
   const handleReactivate = async (user: AdminUserItem) => {
@@ -437,6 +519,14 @@ export default function AdminUsersPage() {
       setActionMsg({ type: "error", text: e instanceof ApiRequestError ? e.message : "Failed to reactivate." })
     }
     setTimeout(() => setActionMsg(null), 3000)
+  }
+
+  const handleDeactivateDone = (msg: string) => {
+    setDeactivateTargets(null)
+    setSelected([])
+    mutate()
+    setActionMsg({ type: "success", text: msg })
+    setTimeout(() => setActionMsg(null), 4000)
   }
 
   const handleCreated = (msg: string) => {
@@ -458,6 +548,13 @@ export default function AdminUsersPage() {
         <CreateStaffModal
           onClose={() => setShowCreateModal(false)}
           onCreated={handleCreated}
+        />
+      )}
+      {deactivateTargets && (
+        <DeactivateModal
+          targets={deactivateTargets}
+          onClose={() => setDeactivateTargets(null)}
+          onDone={handleDeactivateDone}
         />
       )}
 
@@ -537,7 +634,11 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-3 px-4 py-2.5 bg-ocean/5 border border-ocean/20 rounded-lg">
           <span className="text-sm font-medium text-ocean">{selected.length} selected</span>
           <div className="flex gap-2 ml-auto">
-            <Button variant="outline" size="sm" className="text-danger border-danger/30 hover:bg-danger/5">
+            <Button
+              variant="outline" size="sm"
+              className="text-danger border-danger/30 hover:bg-danger/5"
+              onClick={() => setDeactivateTargets(items.filter(u => selected.includes(u.id)))}
+            >
               <UserX className="w-4 h-4 mr-1.5" /> Deactivate Selected
             </Button>
           </div>

@@ -1570,6 +1570,12 @@ export const admin = {
       { method: "POST", body: JSON.stringify({ reason }) }
     ),
 
+  bulkDeactivate: (user_ids: string[], reason: string) =>
+    request<{ deactivated: string[]; skipped: string[]; message: string }>(
+      `/admin/users/bulk-deactivate`,
+      { method: "POST", body: JSON.stringify({ user_ids, reason }) }
+    ),
+
   reactivate: (id: string) =>
     request<{ user_id: string; is_active: boolean; message: string }>(
       `/admin/users/${id}/reactivate`,

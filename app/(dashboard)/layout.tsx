@@ -34,7 +34,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { notifications as notifApi } from "@/lib/api";
-import { usePageLoader } from "@/components/page-loader";
+import { usePageLoader } from "@/components/page-loader"
+import { NotificationToastProvider } from "@/components/notification-toast";
 
 type NavItem = {
   href: string;
@@ -287,6 +288,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-surface">
+      <NotificationToastProvider />
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
