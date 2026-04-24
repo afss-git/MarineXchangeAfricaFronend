@@ -246,7 +246,9 @@ function AssignmentPanel({ item, onReported }: {
   const [showTimeline, setShowTimeline] = useState(false)
 
   // Document viewer
-  const [openDocId, setOpenDocId] = useState<string | null>(null)
+  const [openDocId, setOpenDocId]   = useState<string | null>(null)
+  const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({})
+  const [docLoading, setDocLoading]   = useState<string | null>(null)
 
   // Report form
   const [conditionConfirmed, setConditionConfirmed]   = useState("")
@@ -269,6 +271,19 @@ function AssignmentPanel({ item, onReported }: {
       .catch((e) => setError(e.message ?? "Failed to load assignment"))
       .finally(() => setLoading(false))
   }, [item.id])
+
+  async function loadDocBlob(docId: string, signedUrl: string, mimeType: string) {
+    if (docBlobUrls[docId]) return
+    setDocLoading(docId)
+    try {
+      const res = await fetch(signedUrl)
+      const bytes = await res.arrayBuffer()
+      const blob = new Blob([bytes], { type: mimeType || "application/pdf" })
+      setDocBlobUrls((prev) => ({ ...prev, [docId]: URL.createObjectURL(blob) }))
+    } finally {
+      setDocLoading(null)
+    }
+  }
 
   async function handleMarkInProgress() {
     setMarkingProgress(true)
@@ -458,7 +473,11 @@ function AssignmentPanel({ item, onReported }: {
             {product.documents.map((doc) => (
               <div key={doc.id} className="rounded-lg border border-border overflow-hidden">
                 <button
-                  onClick={() => setOpenDocId(openDocId === doc.id ? null : doc.id)}
+                  onClick={() => {
+                    const isOpening = openDocId !== doc.id
+                    setOpenDocId(isOpening ? doc.id : null)
+                    if (isOpening) loadDocBlob(doc.id, doc.signed_url, doc.mime_type ?? "application/pdf")
+                  }}
                   className="w-full flex items-center gap-3 p-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
                 >
                   <FileText className="w-4 h-4 text-ocean shrink-0" />
@@ -475,7 +494,7 @@ function AssignmentPanel({ item, onReported }: {
                     )}
                   </div>
                   <span className="text-xs text-text-secondary shrink-0">
-                    {openDocId === doc.id ? "Close" : "View"}
+                    {docLoading === doc.id ? "Loading…" : openDocId === doc.id ? "Close" : "View"}
                   </span>
                 </button>
                 {openDocId === doc.id && (
@@ -500,17 +519,20 @@ function AssignmentPanel({ item, onReported }: {
                         backgroundRepeat: "repeat",
                       }}
                     />
-                    <object
-                      data={doc.signed_url}
-                      type="application/pdf"
-                      className="w-full h-full"
-                      style={{ opacity: 0.72, border: "none" }}
-                    >
-                      <p className="text-white text-xs p-3">
-                        PDF cannot be displayed inline.{" "}
-                        <a href={doc.signed_url} target="_blank" rel="noopener noreferrer" className="underline">Open ↗</a>
-                      </p>
-                    </object>
+                    {docBlobUrls[doc.id] ? (
+                      <object
+                        data={docBlobUrls[doc.id]}
+                        type="application/pdf"
+                        className="w-full h-full"
+                        style={{ opacity: 0.72, border: "none" }}
+                      >
+                        <p className="text-white text-xs p-3">PDF cannot be displayed inline.</p>
+                      </object>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-white text-xs">Loading document…</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

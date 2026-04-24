@@ -173,11 +173,42 @@ function fmtBytes(n: number | null) {
 }
 
 function DocRow({ doc, watermark }: { doc: import("@/lib/api").ProductDocument | import("@/lib/api").VerificationEvidenceFile; watermark?: boolean }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]       = useState(false)
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
   const isPdf   = ("mime_type" in doc ? doc.mime_type : null)?.startsWith("application/pdf") ?? doc.signed_url.includes(".pdf")
   const isImage = ("mime_type" in doc ? doc.mime_type : null)?.startsWith("image/") ?? ("file_type" in doc && doc.file_type === "image")
-  const name    = ("original_name" in doc ? doc.original_name : null) ?? ("description" in doc ? doc.description : null) ?? "Document"
-  const size    = "file_size_bytes" in doc ? fmtBytes(doc.file_size_bytes ?? null) : null
+  const mimeType = ("mime_type" in doc ? doc.mime_type : null) ?? (isPdf ? "application/pdf" : isImage ? "image/jpeg" : "application/octet-stream")
+  const name     = ("original_name" in doc ? doc.original_name : null) ?? ("description" in doc ? doc.description : null) ?? "Document"
+  const size     = "file_size_bytes" in doc ? fmtBytes(doc.file_size_bytes ?? null) : null
+
+  // Fetch raw bytes and build a blob URL with explicit MIME type.
+  // This bypasses incorrect Content-Type headers on the Supabase signed URL.
+  async function getOrCreateBlobUrl(): Promise<string> {
+    if (blobUrl) return blobUrl
+    setLoading(true)
+    try {
+      const res = await fetch(doc.signed_url)
+      const bytes = await res.arrayBuffer()
+      const blob = new Blob([bytes], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      setBlobUrl(url)
+      return url
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handlePreview() {
+    if (!open) await getOrCreateBlobUrl()
+    setOpen((v) => !v)
+  }
+
+  async function handleOpenNew() {
+    const url = await getOrCreateBlobUrl()
+    window.open(url, "_blank")
+  }
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
@@ -188,19 +219,20 @@ function DocRow({ doc, watermark }: { doc: import("@/lib/api").ProductDocument |
           {size && <p className="text-xs text-text-secondary">{size}</p>}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <a href={doc.signed_url} target="_blank" rel="noopener noreferrer"
-            className="text-xs text-ocean hover:underline px-2 py-1" onClick={(e) => e.stopPropagation()}>
-            Open ↗
-          </a>
+          <button
+            onClick={handleOpenNew} disabled={loading}
+            className="text-xs text-ocean hover:underline px-2 py-1 disabled:opacity-50">
+            {loading ? "…" : "Open ↗"}
+          </button>
           {(isPdf || isImage) && (
-            <button onClick={() => setOpen((v) => !v)}
-              className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 border-l border-border">
-              {open ? "Hide" : "Preview"}
+            <button onClick={handlePreview} disabled={loading}
+              className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 border-l border-border disabled:opacity-50">
+              {loading ? "Loading…" : open ? "Hide" : "Preview"}
             </button>
           )}
         </div>
       </div>
-      {open && isPdf && (
+      {open && blobUrl && isPdf && (
         <div className="relative bg-gray-800" style={{ height: 520 }}>
           {watermark && (
             <div className="absolute inset-0 pointer-events-none z-10" style={{
@@ -209,23 +241,21 @@ function DocRow({ doc, watermark }: { doc: import("@/lib/api").ProductDocument |
             }} />
           )}
           <object
-            data={doc.signed_url}
+            data={blobUrl}
             type="application/pdf"
             className="w-full h-full border-0"
             style={{ opacity: watermark ? 0.75 : 1 }}
           >
             <p className="text-white text-sm p-4">
-              PDF cannot be displayed inline.{" "}
-              <a href={doc.signed_url} target="_blank" rel="noopener noreferrer" className="underline">
-                Open in new tab
-              </a>
+              PDF cannot be displayed.{" "}
+              <button onClick={handleOpenNew} className="underline">Open in new tab</button>
             </p>
           </object>
         </div>
       )}
-      {open && isImage && (
+      {open && blobUrl && isImage && (
         <div className="p-3 bg-gray-900 flex items-center justify-center" style={{ maxHeight: 400 }}>
-          <img src={doc.signed_url} alt={name} className="max-w-full max-h-80 object-contain rounded" />
+          <img src={blobUrl} alt={name} className="max-w-full max-h-80 object-contain rounded" />
         </div>
       )}
     </div>
