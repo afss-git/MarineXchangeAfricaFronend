@@ -1378,6 +1378,15 @@ export default function AdminDealDetailPage() {
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
 
+  const [exportingCsv, setExportingCsv] = useState(false)
+
+  async function handleExportCsv() {
+    setExportingCsv(true)
+    try { await dealAdmin.exportActivityCsv(id) }
+    catch (e) { alert((e as Error)?.message ?? "Export failed") }
+    finally { setExportingCsv(false) }
+  }
+
   const load = useCallback(async () => {
     setIsLoading(true)
     setError(null)
@@ -1501,7 +1510,11 @@ export default function AdminDealDetailPage() {
         <span className={cn("inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ml-1", statusColor)}>
           {deal.status}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={exportingCsv} className="gap-1.5">
+            {exportingCsv ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exportingCsv ? "Exporting…" : "Export CSV"}
+          </Button>
           <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
             <RefreshCw className="w-4 h-4" />
             Refresh

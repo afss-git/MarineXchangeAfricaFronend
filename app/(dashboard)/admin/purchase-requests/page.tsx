@@ -6,7 +6,7 @@ import {
   AlertCircle, Loader2, ChevronDown, ChevronUp, UserCheck,
   Handshake, Package, DollarSign, MessageSquare, ShieldAlert,
   ZoomIn, X, ChevronLeft, ChevronRight, MapPin, Phone, Globe, Building2,
-  FileQuestion, ExternalLink,
+  FileQuestion, ExternalLink, Download,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -267,6 +267,15 @@ function PRPanel({ item, agents, onActioned }: {
   const [rejecting, setRejecting]       = useState(false)
   const [actionError, setActionError]   = useState<string | null>(null)
 
+  const [exportingCsv, setExportingCsv] = useState(false)
+
+  async function handleExportCsv() {
+    setExportingCsv(true)
+    try { await prAdmin.exportActivityCsv(item.id) }
+    catch (e) { alert((e as Error)?.message ?? "Export failed") }
+    finally { setExportingCsv(false) }
+  }
+
   // Convert to deal
   const [showConvert, setShowConvert]   = useState(false)
   const [agreedPrice, setAgreedPrice]   = useState(item.offered_price ?? "")
@@ -359,6 +368,14 @@ function PRPanel({ item, agents, onActioned }: {
 
   return (
     <div className="border-t border-border divide-y divide-border">
+
+      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
+      <div className="px-5 py-3 flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={exportingCsv} className="gap-1.5">
+          {exportingCsv ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          {exportingCsv ? "Exporting…" : "Export Activity (CSV)"}
+        </Button>
+      </div>
 
       {/* ── Product Images + Info ──────────────────────────────────────────── */}
       <div className="px-5 py-5 space-y-4">

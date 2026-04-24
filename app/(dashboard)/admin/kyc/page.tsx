@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import {
   Search, ShieldCheck, ShieldX, FileText, Eye, ChevronDown, ChevronUp,
   CheckCircle2, XCircle, Clock, AlertCircle, Plus, Settings2, RefreshCw,
-  User, Loader2, ExternalLink, Tag, ToggleLeft, ToggleRight, Phone,
+  User, Loader2, ExternalLink, Tag, ToggleLeft, ToggleRight, Phone, Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -125,6 +125,14 @@ function SubmissionDetail({ subId, onDecided }: { subId: string; onDecided: () =
   const [submitting, setSubmitting] = useState(false)
   const [decideError, setDecideError] = useState<string | null>(null)
   const [decided, setDecided] = useState(false)
+  const [exportingCsv, setExportingCsv] = useState(false)
+
+  async function handleExportCsv() {
+    setExportingCsv(true)
+    try { await kycAdmin.exportActivityCsv(subId) }
+    catch (e) { alert((e as Error)?.message ?? "Export failed") }
+    finally { setExportingCsv(false) }
+  }
 
   useEffect(() => {
     kycAdmin.getSubmission(subId)
@@ -168,6 +176,13 @@ function SubmissionDetail({ subId, onDecided }: { subId: string; onDecided: () =
 
   return (
     <div className="border-t border-border">
+      {/* Toolbar */}
+      <div className="px-5 py-3 flex justify-end border-b border-border">
+        <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={exportingCsv} className="gap-1.5">
+          {exportingCsv ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          {exportingCsv ? "Exporting…" : "Export Activity (CSV)"}
+        </Button>
+      </div>
       {/* Documents */}
       <div className="px-5 pt-4 pb-2">
         <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-3">

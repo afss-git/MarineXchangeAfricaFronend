@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft, User, ShieldCheck, Handshake, FileText,
   RefreshCw, AlertCircle, CheckCircle2, XCircle, Edit3,
-  CreditCard, BarChart3, Shield, Loader2, Settings2,
+  CreditCard, BarChart3, Shield, Loader2, Settings2, Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -366,6 +366,15 @@ export default function AdminUserDetailPage() {
   const [rolesSaving, setRolesSaving] = useState(false)
   const [rolesError, setRolesError] = useState<string | null>(null)
 
+  const [exportingCsv, setExportingCsv] = useState(false)
+
+  async function handleExportCsv() {
+    setExportingCsv(true)
+    try { await adminApi.exportActivityCsv(id) }
+    catch (e) { alert((e as Error)?.message ?? "Export failed") }
+    finally { setExportingCsv(false) }
+  }
+
   // Deactivate/reactivate
   const [deactivating, setDeactivating] = useState(false)
   const [deactivateReason, setDeactivateReason] = useState("")
@@ -477,7 +486,11 @@ export default function AdminUserDetailPage() {
         )}>
           {user.is_active ? "Active" : "Inactive"}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={exportingCsv} className="gap-1.5">
+            {exportingCsv ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exportingCsv ? "Exporting…" : "Export Activity"}
+          </Button>
           <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
             <RefreshCw className="w-4 h-4" />Refresh
           </Button>

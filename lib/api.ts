@@ -1575,6 +1575,9 @@ export const admin = {
       `/admin/users/${id}/reactivate`,
       { method: "POST" }
     ),
+
+  exportActivityCsv: (userId: string) =>
+    exportCsv(`/admin/users/${userId}/activity/export`),
 }
 
 // ── Phase 4 — Deal management types ──────────────────────────────────────────
@@ -1827,6 +1830,9 @@ export const dealAdmin = {
     request<InstallmentOut>(`/deals/${dealId}/installments/${installmentNumber}/waive`, {
       method: "POST", body: JSON.stringify({ reason }),
     }),
+
+  exportActivityCsv: (dealId: string) =>
+    exportCsv(`/deals/${dealId}/activity/export`),
 }
 
 // Payment accounts config
@@ -2323,6 +2329,9 @@ export const kycAdmin = {
   }) => request<DocumentTypeResponse>(`/kyc/admin/document-types/${id}`, {
     method: "PATCH", body: JSON.stringify(data),
   }),
+
+  exportActivityCsv: (submissionId: string) =>
+    exportCsv(`/kyc/admin/submissions/${submissionId}/activity/export`),
 }
 
 // ── Phase 9 additions ─────────────────────────────────────────────────────────
@@ -2980,6 +2989,9 @@ export const prAdmin = {
 
   docDownloadUrl: (docReqId: string) =>
     `/api/v1/purchase-requests/admin/document-requests/${docReqId}/download`,
+
+  exportActivityCsv: (requestId: string) =>
+    exportCsv(`/purchase-requests/admin/${requestId}/activity/export`),
 }
 
 // ── Purchase Requests Agent types ─────────────────────────────────────────────
