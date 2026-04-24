@@ -71,6 +71,7 @@ const adminNav: NavItem[] = [
   { href: "/admin/deals",             label: "Deal Management",    icon: Handshake },
   { href: "/admin/auctions",          label: "Auctions",           icon: Gavel },
   { href: "/admin/finance",           label: "Finance Queue",      icon: Banknote },
+  { href: "/admin/activity",          label: "Activity Log",       icon: BadgeCheck },
   { href: "/admin/reports",           label: "Reports",            icon: TrendingUp },
   { href: "/admin/exchange-rates",    label: "Exchange Rates",     icon: TrendingUp },
   { href: "/admin/settings",          label: "Deal Settings",      icon: Settings },

@@ -2165,7 +2165,7 @@ function buildDateQuery(from: string, to: string) {
   return `?from_date=${from}&to_date=${to}`
 }
 
-async function exportCsv(path: string): Promise<void> {
+export async function exportCsv(path: string): Promise<void> {
   const token = getAccessToken()
   const headers: Record<string, string> = {}
   if (token) headers["Authorization"] = `Bearer ${token}`
@@ -3218,4 +3218,62 @@ export interface AdminSellerDetail {
     assignments_count: number; last_activity: string | null
   }[]
   activity: { action: string; resource_type: string; resource_id: string; created_at: string }[]
+}
+
+// ── Activity Browser ─────────────────────────────────────────────────────────
+
+export interface ActivityLogItem {
+  id: string
+  timestamp: string
+  action: string
+  actor_id: string | null
+  actor_name: string
+  actor_email: string
+  actor_role: string
+  resource_type: string
+  resource_id: string
+  old_state: string | null
+  new_state: string | null
+  metadata: string | null
+}
+
+export interface ActivityLogResponse {
+  total: number
+  page: number
+  per_page: number
+  pages: number
+  items: ActivityLogItem[]
+}
+
+export interface ActivityUser {
+  id: string
+  full_name: string
+  email: string
+  roles: string[]
+}
+
+export const activityAdmin = {
+  getLogs: (params: {
+    user_id?: string
+    date?: string
+    date_from?: string
+    date_to?: string
+    category?: string
+    resource_type?: string
+    search?: string
+    page?: number
+    per_page?: number
+  }) => {
+    const qs = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") qs.set(k, String(v))
+    })
+    const q = qs.toString() ? `?${qs}` : ""
+    return request<ActivityLogResponse>(`/admin/activity/logs${q}`)
+  },
+
+  searchUsers: (q?: string) => {
+    const qs = q ? `?q=${encodeURIComponent(q)}` : ""
+    return request<ActivityUser[]>(`/admin/activity/users${qs}`)
+  },
 }
