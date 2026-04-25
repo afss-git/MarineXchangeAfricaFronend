@@ -164,8 +164,9 @@ function EvidenceFileButton({ evidenceId, fileName }: { evidenceId: string; file
   async function open() {
     setLoading(true)
     try {
-      const { signed_url } = await payments.admin.getEvidenceDownloadUrl(evidenceId)
-      window.open(signed_url, "_blank", "noopener,noreferrer")
+      const { blob } = await payments.admin.downloadEvidenceBlob(evidenceId)
+      const blobUrl = URL.createObjectURL(blob)
+      window.open(blobUrl, "_blank", "noopener,noreferrer")
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }

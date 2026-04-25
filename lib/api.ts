@@ -1211,8 +1211,8 @@ export const payments = {
     getSummary: (dealId: string) =>
       request<DealPaymentSummary>(`/payments/admin/deals/${dealId}/summary`),
 
-    getEvidenceDownloadUrl: (evidenceId: string) =>
-      request<{ signed_url: string }>(`/payments/admin/evidence/${evidenceId}/download`),
+    downloadEvidenceBlob: (evidenceId: string) =>
+      fetchBlob(`/payments/admin/evidence/${evidenceId}/download`),
   },
 }
 
