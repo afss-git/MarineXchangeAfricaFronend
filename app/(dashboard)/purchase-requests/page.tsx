@@ -13,6 +13,7 @@ import {
   MessageSquare,
   AlertCircle,
   FileText,
+  Package,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -165,7 +166,13 @@ export default function PurchaseRequestsPage() {
               <Link key={req.id} href={`/purchase-requests/${req.id}`}>
                 <div className="bg-white rounded-xl border border-border p-5 shadow-sm hover:shadow-md hover:border-ocean/30 transition-all group">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                    <div className="w-full sm:w-24 h-20 sm:h-16 bg-gray-100 rounded-lg shrink-0" />
+                    <div className="w-full sm:w-24 h-20 sm:h-16 rounded-lg shrink-0 overflow-hidden bg-gray-100 flex items-center justify-center">
+                      {req.product_primary_image_url ? (
+                        <img src={req.product_primary_image_url} alt={req.product_title ?? "Product"} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="w-6 h-6 text-gray-300" />
+                      )}
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-3 flex-wrap">

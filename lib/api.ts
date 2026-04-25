@@ -204,6 +204,7 @@ export interface Deal {
   deal_ref: string
   deal_type: string
   product_title: string | null
+  product_primary_image_url: string | null
   buyer_name: string | null
   seller_name: string | null
   status: string

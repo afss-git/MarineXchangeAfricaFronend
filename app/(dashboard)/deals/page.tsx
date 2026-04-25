@@ -178,8 +178,12 @@ export default function DealsPage() {
                     </div>
                   )}
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                    <div className="w-full sm:w-24 h-20 sm:h-16 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center">
-                      <Handshake className="w-6 h-6 text-gray-300" />
+                    <div className="w-full sm:w-24 h-20 sm:h-16 rounded-lg shrink-0 overflow-hidden bg-gray-100 flex items-center justify-center">
+                      {deal.product_primary_image_url ? (
+                        <img src={deal.product_primary_image_url} alt={deal.product_title ?? "Deal"} className="w-full h-full object-cover" />
+                      ) : (
+                        <Handshake className="w-6 h-6 text-gray-300" />
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-0">
