@@ -3363,8 +3363,6 @@ export const documentsHub = {
   getDealAllDocs: (dealId: string) =>
     request<DealAllDocuments>(`/admin/documents/deal/${dealId}`),
 
-  getDownloadUrl: (docType: string, docId: string) =>
-    request<{ url: string; file_name: string; expires_in_seconds: number }>(
-      `/admin/documents/${docType}/${docId}/download`
-    ),
+  downloadBlob: (docType: string, docId: string) =>
+    fetchBlob(`/admin/documents/${docType}/${docId}/download`),
 }

@@ -46,16 +46,17 @@ function fmtDate(ts: string | null) {
 
 // ── Download handler ─────────────────────────────────────────────────────────
 
-async function downloadDoc(docType: string, docId: string) {
+async function downloadDoc(docType: string, docId: string, fileName: string) {
   try {
-    const { url, file_name } = await documentsHub.getDownloadUrl(docType, docId)
+    const { blob } = await documentsHub.downloadBlob(docType, docId)
+    const blobUrl = URL.createObjectURL(blob)
     const a = document.createElement("a")
-    a.href = url
-    a.download = file_name
-    a.target = "_blank"
+    a.href = blobUrl
+    a.download = fileName || "document"
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
+    URL.revokeObjectURL(blobUrl)
   } catch (e) {
     alert((e as Error)?.message ?? "Download failed")
   }
@@ -68,7 +69,7 @@ function DocRow({ item }: { item: DocHubItem }) {
 
   async function handleDownload() {
     setDownloading(true)
-    await downloadDoc(item.doc_type, item.id)
+    await downloadDoc(item.doc_type, item.id, item.file_name)
     setDownloading(false)
   }
 
