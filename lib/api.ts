@@ -834,7 +834,7 @@ export const purchaseRequests = {
     offered_currency?: string
     message?: string
     quantity?: number
-  }) => request<PurchaseRequest>("/purchase-requests/", {
+  }) => request<PurchaseRequest>("/purchase-requests", {
     method: "POST",
     body: JSON.stringify(data),
   }),
