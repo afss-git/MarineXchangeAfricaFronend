@@ -411,37 +411,71 @@ function fmtDuration(secs: number | null) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`
 }
 
+function fmtTimer(secs: number) {
+  const m = Math.floor(secs / 60).toString().padStart(2, "0")
+  const s = (secs % 60).toString().padStart(2, "0")
+  return `${m}:${s}`
+}
+
+const OUTCOMES = [
+  { value: "identity_confirmed",       label: "Identity Confirmed",  color: "bg-green-100 text-green-700 border-green-300"  },
+  { value: "identity_not_confirmed",   label: "Not Confirmed",       color: "bg-red-100 text-red-700 border-red-300"        },
+  { value: "additional_info_gathered", label: "Info Gathered",       color: "bg-blue-100 text-blue-700 border-blue-300"     },
+  { value: "callback_requested",       label: "Callback Requested",  color: "bg-yellow-100 text-yellow-700 border-yellow-300"},
+  { value: "suspicious",               label: "Suspicious",          color: "bg-orange-100 text-orange-700 border-orange-300"},
+]
+
 function CallPanel({ submissionId }: { submissionId: string }) {
-  const [calling, setCalling]         = useState(false)
-  const [callResult, setCallResult]   = useState<{ call_id: string } | null>(null)
-  const [callOutcome, setCallOutcome] = useState("")
-  const [callNotes, setCallNotes]     = useState("")
-  const [savingNotes, setSavingNotes] = useState(false)
-  const [error, setError]             = useState<string | null>(null)
-  const [notesSaved, setNotesSaved]   = useState(false)
-  const [history, setHistory]         = useState<VerificationCallRecord[]>([])
-  const [histLoading, setHistLoading] = useState(true)
+  const [calling, setCalling]           = useState(false)
+  const [callResult, setCallResult]     = useState<{ call_id: string } | null>(null)
+  const [callOutcome, setCallOutcome]   = useState("")
+  const [callNotes, setCallNotes]       = useState("")
+  const [savingNotes, setSavingNotes]   = useState(false)
+  const [notesSaved, setNotesSaved]     = useState(false)
+  const [error, setError]               = useState<string | null>(null)
+  const [modalOpen, setModalOpen]       = useState(false)
+  const [callSeconds, setCallSeconds]   = useState(0)
+  const [callEnded, setCallEnded]       = useState(false)
+  const [history, setHistory]           = useState<VerificationCallRecord[]>([])
+  const [histLoading, setHistLoading]   = useState(true)
+
+  const refreshHistory = () =>
+    kycAgent.listCalls(submissionId).then(setHistory).catch(() => {})
 
   useEffect(() => {
     kycAgent.listCalls(submissionId)
-      .then(setHistory)
-      .catch(() => {})
-      .finally(() => setHistLoading(false))
+      .then(setHistory).catch(() => {}).finally(() => setHistLoading(false))
   }, [submissionId])
+
+  // Live call timer
+  useEffect(() => {
+    if (!modalOpen || callEnded) return
+    const id = setInterval(() => setCallSeconds((s) => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [modalOpen, callEnded])
 
   async function handleCall() {
     setCalling(true)
     setError(null)
+    setCallSeconds(0)
+    setCallEnded(false)
+    setCallOutcome("")
+    setCallNotes("")
+    setNotesSaved(false)
     try {
       const result = await kycAgent.initiateCall(submissionId)
       setCallResult(result)
-      // refresh history
-      kycAgent.listCalls(submissionId).then(setHistory).catch(() => {})
+      setModalOpen(true)
+      refreshHistory()
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Failed to initiate call")
     } finally {
       setCalling(false)
     }
+  }
+
+  function handleEndCall() {
+    setCallEnded(true)
   }
 
   async function handleSaveNotes() {
@@ -453,6 +487,8 @@ function CallPanel({ submissionId }: { submissionId: string }) {
         call_notes: callNotes.trim() || undefined,
       })
       setNotesSaved(true)
+      refreshHistory()
+      setTimeout(() => setModalOpen(false), 1500)
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Failed to save notes")
     } finally {
@@ -460,82 +496,177 @@ function CallPanel({ submissionId }: { submissionId: string }) {
     }
   }
 
-  const OUTCOMES = [
-    { value: "identity_confirmed", label: "Identity Confirmed" },
-    { value: "identity_not_confirmed", label: "Not Confirmed" },
-    { value: "additional_info_gathered", label: "Info Gathered" },
-    { value: "callback_requested", label: "Callback Requested" },
-    { value: "suspicious", label: "Suspicious" },
-  ]
-
   return (
     <div className="p-5 space-y-4">
       <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Verification Call</p>
 
-      {!callResult ? (
-        <>
-          <div className="p-3 bg-ocean/5 border border-ocean/20 rounded-lg space-y-1">
-            <p className="text-xs text-text-secondary">
-              <span className="font-medium text-text-primary">Your registered phone</span> will ring first. Once you answer, you&apos;ll be bridged to the buyer&apos;s verified phone. The call is recorded with a consent notice.
-            </p>
-            <p className="text-xs text-text-secondary">
-              Ensure your profile has a phone number set before starting.
-            </p>
-          </div>
-          {error && <ErrorBar msg={error} />}
-          <Button size="sm" onClick={handleCall} disabled={calling} className="bg-ocean hover:bg-ocean-dark text-white gap-1.5">
-            {calling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PhoneCall className="w-3.5 h-3.5" />}
-            {calling ? "Connecting..." : "Start Call"}
-          </Button>
-        </>
-      ) : notesSaved ? (
-        <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/20 rounded-lg text-success text-sm">
-          <CheckCircle2 className="w-4 h-4" /> Call notes saved successfully.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 p-3 bg-ocean/10 border border-ocean/20 rounded-lg text-ocean text-sm">
-            <Phone className="w-4 h-4" /> Call initiated. Complete notes after the call ends.
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary block mb-1.5">Call Outcome</label>
-            <div className="flex gap-2 flex-wrap">
-              {OUTCOMES.map((o) => (
-                <button
-                  key={o.value}
-                  onClick={() => setCallOutcome(o.value)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors",
-                    callOutcome === o.value
-                      ? "bg-ocean text-white border-ocean"
-                      : "bg-white text-text-secondary border-border hover:border-gray-300"
-                  )}
-                >
-                  {o.label}
-                </button>
-              ))}
+      {/* Start call button */}
+      <div className="p-3 bg-ocean/5 border border-ocean/20 rounded-lg space-y-1">
+        <p className="text-xs text-text-secondary">
+          <span className="font-medium text-text-primary">Your registered phone</span> will ring first.
+          Once you answer, you&apos;ll be connected to the buyer. The call is recorded automatically.
+        </p>
+      </div>
+      {error && <ErrorBar msg={error} />}
+      <Button size="sm" onClick={handleCall} disabled={calling}
+        className="bg-ocean hover:bg-ocean-dark text-white gap-1.5">
+        {calling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PhoneCall className="w-3.5 h-3.5" />}
+        {calling ? "Connecting..." : "Start Call"}
+      </Button>
+
+      {/* ── Call Modal ───────────────────────────────────────────────── */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+            {/* Header */}
+            <div className={cn(
+              "px-6 py-5 flex items-center justify-between",
+              callEnded ? "bg-gray-800" : "bg-navy"
+            )}>
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  callEnded ? "bg-gray-600" : "bg-white/20"
+                )}>
+                  <Phone className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-sm">
+                    {callEnded ? "Call Ended" : "Call in Progress"}
+                  </p>
+                  <p className="text-white/60 text-xs">Verification Call · Recorded</p>
+                </div>
+              </div>
+              {/* Timer */}
+              <div className="text-right">
+                <p className={cn(
+                  "text-2xl font-mono font-bold tabular-nums",
+                  callEnded ? "text-gray-400" : "text-white"
+                )}>
+                  {fmtTimer(callSeconds)}
+                </p>
+                {!callEnded && (
+                  <div className="flex items-center gap-1 justify-end mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                    <span className="text-white/60 text-xs">LIVE</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+
+              {!callEnded ? (
+                <>
+                  {/* Status */}
+                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-sm text-green-700 font-medium">Connected — call is active</span>
+                  </div>
+
+                  {/* Notes while on call */}
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary block mb-1.5">
+                      Notes (type while on call)
+                    </label>
+                    <Textarea
+                      rows={4}
+                      className="text-sm resize-none"
+                      placeholder="Key observations, what was discussed..."
+                      value={callNotes}
+                      onChange={(e) => setCallNotes(e.target.value)}
+                    />
+                  </div>
+
+                  {/* End call button */}
+                  <Button
+                    onClick={handleEndCall}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white gap-2"
+                  >
+                    <XIcon className="w-4 h-4" /> End Call Session
+                  </Button>
+                  <p className="text-xs text-text-secondary text-center">
+                    Hang up your phone first, then click End Call Session
+                  </p>
+                </>
+              ) : notesSaved ? (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <CheckCircle2 className="w-10 h-10 text-green-500" />
+                  <p className="text-sm font-medium text-text-primary">Notes saved successfully</p>
+                </div>
+              ) : (
+                <>
+                  {/* Outcome selection */}
+                  <div>
+                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide block mb-2">
+                      Call Outcome *
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {OUTCOMES.map((o) => (
+                        <button
+                          key={o.value}
+                          onClick={() => setCallOutcome(o.value)}
+                          className={cn(
+                            "px-3 py-2.5 rounded-lg border text-xs font-medium transition-all text-left",
+                            callOutcome === o.value
+                              ? `${o.color} border-current ring-2 ring-offset-1 ring-current`
+                              : "bg-white text-text-secondary border-border hover:border-gray-300"
+                          )}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes review */}
+                  <div>
+                    <label className="text-xs font-medium text-text-secondary block mb-1.5">Notes</label>
+                    <Textarea
+                      rows={3}
+                      className="text-sm resize-none"
+                      placeholder="Add or edit your notes..."
+                      value={callNotes}
+                      onChange={(e) => setCallNotes(e.target.value)}
+                    />
+                  </div>
+
+                  <p className="text-xs text-text-secondary">Duration: {fmtTimer(callSeconds)}</p>
+
+                  {error && <ErrorBar msg={error} />}
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSaveNotes}
+                      disabled={savingNotes || !callOutcome}
+                      className="flex-1 bg-ocean hover:bg-ocean-dark text-white gap-1.5"
+                    >
+                      {savingNotes
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Send className="w-3.5 h-3.5" />}
+                      Save & Close
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setModalOpen(false)}
+                      className="px-4"
+                    >
+                      Later
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Call Notes</label>
-            <Textarea rows={3} className="text-sm resize-none" placeholder="What was discussed, key observations..."
-              value={callNotes} onChange={(e) => setCallNotes(e.target.value)} />
-          </div>
-          {error && <ErrorBar msg={error} />}
-          <Button size="sm" onClick={handleSaveNotes} disabled={savingNotes || !callOutcome}
-            className="bg-ocean hover:bg-ocean-dark text-white gap-1.5">
-            {savingNotes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            Save Call Notes
-          </Button>
         </div>
       )}
 
       {/* Call history */}
       {(history.length > 0 || histLoading) && (
         <div className="mt-4 pt-4 border-t border-border">
-          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
-            Previous Calls
-          </p>
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Previous Calls</p>
           {histLoading ? (
             <div className="flex items-center gap-2 text-xs text-text-secondary">
               <Loader2 className="w-3 h-3 animate-spin" /> Loading…
@@ -548,8 +679,8 @@ function CallPanel({ submissionId }: { submissionId: string }) {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={cn(
                         "px-1.5 py-0.5 rounded-full text-xs font-medium",
-                        c.status === "completed" ? "bg-gray-100 text-gray-600" :
-                        c.status === "in_progress" ? "bg-green-100 text-green-700" :
+                        c.status === "completed"   ? "bg-gray-100 text-gray-600"  :
+                        c.status === "in_progress" ? "bg-green-100 text-green-700":
                         c.status === "failed" || c.status === "no_answer" ? "bg-red-100 text-red-600" :
                         "bg-blue-100 text-blue-700"
                       )}>
@@ -559,7 +690,7 @@ function CallPanel({ submissionId }: { submissionId: string }) {
                         <span className={cn(
                           "px-1.5 py-0.5 rounded-full text-xs font-medium",
                           c.call_outcome === "identity_confirmed" ? "bg-green-100 text-green-700" :
-                          c.call_outcome === "suspicious" ? "bg-red-100 text-red-700" :
+                          c.call_outcome === "suspicious"         ? "bg-red-100 text-red-700"    :
                           "bg-gray-100 text-gray-600"
                         )}>
                           {CALL_OUTCOME_LABELS[c.call_outcome] ?? c.call_outcome}
@@ -567,10 +698,10 @@ function CallPanel({ submissionId }: { submissionId: string }) {
                       )}
                       <span className="text-text-secondary">{fmtDuration(c.duration_seconds)}</span>
                     </div>
-                    {c.call_notes && (
-                      <p className="text-text-secondary truncate max-w-xs">{c.call_notes}</p>
-                    )}
-                    <p className="text-text-secondary">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                    {c.call_notes && <p className="text-text-secondary truncate max-w-xs">{c.call_notes}</p>}
+                    <p className="text-text-secondary">
+                      {new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </p>
                   </div>
                   {c.recording_url && (
                     <a href={c.recording_url} target="_blank" rel="noopener noreferrer"
