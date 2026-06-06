@@ -18,7 +18,7 @@ import {
   kycAgent, KycSubmissionListItem, KycSubmissionResponse,
   KycAgentReviewRequest, KycDocumentResponse,
   ChecklistTemplateItem, DocumentVerificationResponse,
-  DocumentRequestResponse, DocumentTypeResponse,
+  DocumentRequestResponse, DocumentTypeResponse, VerificationCallRecord,
 } from "@/lib/api"
 import { useAgentKycQueue } from "@/lib/hooks"
 
@@ -397,14 +397,37 @@ function DocVerifyPanel({ doc, submissionId, existingVerification, onDone }: {
 
 // ── Call Panel ─────────────────────────────────────────────────────────────────
 
+const CALL_OUTCOME_LABELS: Record<string, string> = {
+  identity_confirmed:       "Confirmed",
+  identity_not_confirmed:   "Not Confirmed",
+  additional_info_gathered: "Info Gathered",
+  callback_requested:       "Callback",
+  suspicious:               "Suspicious",
+}
+
+function fmtDuration(secs: number | null) {
+  if (!secs) return "—"
+  const m = Math.floor(secs / 60), s = secs % 60
+  return m > 0 ? `${m}m ${s}s` : `${s}s`
+}
+
 function CallPanel({ submissionId }: { submissionId: string }) {
-  const [calling, setCalling] = useState(false)
-  const [callResult, setCallResult] = useState<{ call_id: string } | null>(null)
+  const [calling, setCalling]         = useState(false)
+  const [callResult, setCallResult]   = useState<{ call_id: string } | null>(null)
   const [callOutcome, setCallOutcome] = useState("")
-  const [callNotes, setCallNotes] = useState("")
+  const [callNotes, setCallNotes]     = useState("")
   const [savingNotes, setSavingNotes] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [notesSaved, setNotesSaved] = useState(false)
+  const [error, setError]             = useState<string | null>(null)
+  const [notesSaved, setNotesSaved]   = useState(false)
+  const [history, setHistory]         = useState<VerificationCallRecord[]>([])
+  const [histLoading, setHistLoading] = useState(true)
+
+  useEffect(() => {
+    kycAgent.listCalls(submissionId)
+      .then(setHistory)
+      .catch(() => {})
+      .finally(() => setHistLoading(false))
+  }, [submissionId])
 
   async function handleCall() {
     setCalling(true)
@@ -412,6 +435,8 @@ function CallPanel({ submissionId }: { submissionId: string }) {
     try {
       const result = await kycAgent.initiateCall(submissionId)
       setCallResult(result)
+      // refresh history
+      kycAgent.listCalls(submissionId).then(setHistory).catch(() => {})
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Failed to initiate call")
     } finally {
@@ -502,6 +527,61 @@ function CallPanel({ submissionId }: { submissionId: string }) {
             {savingNotes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             Save Call Notes
           </Button>
+        </div>
+      )}
+
+      {/* Call history */}
+      {(history.length > 0 || histLoading) && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+            Previous Calls
+          </p>
+          {histLoading ? (
+            <div className="flex items-center gap-2 text-xs text-text-secondary">
+              <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {history.map((c) => (
+                <div key={c.id} className="flex items-start justify-between p-2.5 bg-gray-50 rounded-lg text-xs gap-2">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={cn(
+                        "px-1.5 py-0.5 rounded-full text-xs font-medium",
+                        c.status === "completed" ? "bg-gray-100 text-gray-600" :
+                        c.status === "in_progress" ? "bg-green-100 text-green-700" :
+                        c.status === "failed" || c.status === "no_answer" ? "bg-red-100 text-red-600" :
+                        "bg-blue-100 text-blue-700"
+                      )}>
+                        {c.status.replace(/_/g, " ")}
+                      </span>
+                      {c.call_outcome && (
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded-full text-xs font-medium",
+                          c.call_outcome === "identity_confirmed" ? "bg-green-100 text-green-700" :
+                          c.call_outcome === "suspicious" ? "bg-red-100 text-red-700" :
+                          "bg-gray-100 text-gray-600"
+                        )}>
+                          {CALL_OUTCOME_LABELS[c.call_outcome] ?? c.call_outcome}
+                        </span>
+                      )}
+                      <span className="text-text-secondary">{fmtDuration(c.duration_seconds)}</span>
+                    </div>
+                    {c.call_notes && (
+                      <p className="text-text-secondary truncate max-w-xs">{c.call_notes}</p>
+                    )}
+                    <p className="text-text-secondary">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                  </div>
+                  {c.recording_url && (
+                    <a href={c.recording_url} target="_blank" rel="noopener noreferrer"
+                      className="shrink-0 flex items-center gap-1 text-ocean hover:underline text-xs">
+                      <Phone className="w-3 h-3" /> Play
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

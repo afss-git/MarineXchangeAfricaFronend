@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 import {
   kycAdmin,
   KycSubmissionListItem, KycSubmissionResponse, DocumentTypeResponse,
-  DocVerificationBrief,
+  DocVerificationBrief, VerificationCallRecord,
 } from "@/lib/api"
 import { useAdminKycQueue } from "@/lib/hooks"
 
@@ -840,16 +840,163 @@ function DocumentTypesTab() {
   )
 }
 
+// ── Calls Tab ─────────────────────────────────────────────────────────────────
+
+const CALL_STATUS_COLORS: Record<string, string> = {
+  initiated:   "bg-blue-100 text-blue-700",
+  ringing:     "bg-yellow-100 text-yellow-700",
+  in_progress: "bg-green-100 text-green-700",
+  completed:   "bg-gray-100 text-gray-700",
+  no_answer:   "bg-orange-100 text-orange-700",
+  busy:        "bg-orange-100 text-orange-700",
+  failed:      "bg-red-100 text-red-700",
+  cancelled:   "bg-gray-100 text-gray-500",
+}
+
+const OUTCOME_LABELS: Record<string, string> = {
+  identity_confirmed:       "Confirmed",
+  identity_not_confirmed:   "Not Confirmed",
+  additional_info_gathered: "Info Gathered",
+  callback_requested:       "Callback",
+  suspicious:               "Suspicious",
+}
+
+function formatDuration(secs: number | null) {
+  if (!secs) return "—"
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return m > 0 ? `${m}m ${s}s` : `${s}s`
+}
+
+function CallsTab() {
+  const [calls, setCalls]       = useState<VerificationCallRecord[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [statusFilter, setFilter] = useState("")
+  const [page, setPage]         = useState(1)
+  const [total, setTotal]       = useState(0)
+  const PAGE_SIZE = 50
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await kycAdmin.listCalls({ status: statusFilter || undefined, page })
+      setCalls(res.items)
+      setTotal(res.total)
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
+  }, [statusFilter, page])
+
+  useEffect(() => { load() }, [load])
+
+  const STATUS_OPTIONS = ["", "initiated", "ringing", "in_progress", "completed", "no_answer", "busy", "failed", "cancelled"]
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <select
+          value={statusFilter}
+          onChange={(e) => { setFilter(e.target.value); setPage(1) }}
+          className="text-sm border border-border rounded-lg px-3 py-2 bg-white text-text-primary"
+        >
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s ? s.replace(/_/g, " ") : "All statuses"}</option>
+          ))}
+        </select>
+        <button onClick={load} className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+        <span className="text-xs text-text-secondary ml-auto">{total} total call{total !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-border rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-5 h-5 animate-spin text-text-secondary" />
+          </div>
+        ) : calls.length === 0 ? (
+          <div className="text-center py-16 text-text-secondary text-sm">No calls found.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-border">
+              <tr>
+                {["Date", "Agent", "Buyer", "Status", "Duration", "Outcome", "Recording"].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-text-secondary uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {calls.map((c) => (
+                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 text-xs text-text-secondary whitespace-nowrap">{fmtDate(c.created_at)}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-text-primary text-xs">{c.agent_name ?? "—"}</p>
+                    <p className="text-xs text-text-secondary">{c.agent_email ?? ""}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-text-primary">{c.buyer_name ?? c.to_number}</td>
+                  <td className="px-4 py-3">
+                    <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", CALL_STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600")}>
+                      {c.status.replace(/_/g, " ")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-text-secondary">{formatDuration(c.duration_seconds)}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {c.call_outcome ? (
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-full text-xs font-medium",
+                        c.call_outcome === "identity_confirmed" ? "bg-green-100 text-green-700" :
+                        c.call_outcome === "suspicious" ? "bg-red-100 text-red-700" :
+                        "bg-gray-100 text-gray-600"
+                      )}>
+                        {OUTCOME_LABELS[c.call_outcome] ?? c.call_outcome}
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.recording_url ? (
+                      <a href={c.recording_url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-ocean hover:underline">
+                        <ExternalLink className="w-3 h-3" /> Play
+                      </a>
+                    ) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between text-sm text-text-secondary">
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+            className="px-3 py-1.5 border border-border rounded-lg disabled:opacity-40 hover:bg-gray-50">
+            Previous
+          </button>
+          <span>Page {page} of {Math.ceil(total / PAGE_SIZE)}</span>
+          <button onClick={() => setPage((p) => p + 1)} disabled={page * PAGE_SIZE >= total}
+            className="px-3 py-1.5 border border-border rounded-lg disabled:opacity-40 hover:bg-gray-50">
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-type PageTab = "submissions" | "doc_types"
+type PageTab = "submissions" | "doc_types" | "calls"
 
 export default function AdminKYCPage() {
   const [tab, setTab] = useState<PageTab>("submissions")
 
   const PAGE_TABS: { value: PageTab; label: string; icon: React.ElementType }[] = [
-    { value: "submissions", label: "Submissions",     icon: ShieldCheck  },
-    { value: "doc_types",   label: "Document Types",  icon: Tag          },
+    { value: "submissions", label: "Submissions",  icon: ShieldCheck },
+    { value: "doc_types",   label: "Doc Types",    icon: Tag         },
+    { value: "calls",       label: "Calls",        icon: Phone       },
   ]
 
   return (
@@ -875,6 +1022,7 @@ export default function AdminKYCPage() {
 
       {tab === "submissions" && <SubmissionsTab />}
       {tab === "doc_types"   && <DocumentTypesTab />}
+      {tab === "calls"       && <CallsTab />}
     </div>
   )
 }

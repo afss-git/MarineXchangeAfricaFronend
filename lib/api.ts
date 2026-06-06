@@ -2292,6 +2292,25 @@ export interface PaginatedKycSubmissions {
   total: number; page: number; page_size: number; pages: number
 }
 
+export interface VerificationCallRecord {
+  id: string
+  submission_id: string
+  status: string
+  duration_seconds: number | null
+  recording_url: string | null
+  recording_duration: number | null
+  call_outcome: string | null
+  call_notes: string | null
+  from_number: string
+  to_number: string
+  started_at: string | null
+  ended_at: string | null
+  created_at: string
+  agent_name?: string | null
+  buyer_name?: string | null
+  agent_email?: string | null
+}
+
 // ── KYC admin endpoints ───────────────────────────────────────────────────────
 
 export const kycAdmin = {
@@ -2339,6 +2358,16 @@ export const kycAdmin = {
 
   exportActivityCsv: (submissionId: string) =>
     exportCsv(`/kyc/admin/submissions/${submissionId}/activity/export`),
+
+  listCalls: (params?: { status?: string; page?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.status) qs.set("status", params.status)
+    if (params?.page)   qs.set("page", String(params.page))
+    const q = qs.toString() ? `?${qs}` : ""
+    return request<{ items: VerificationCallRecord[]; total: number; page: number; page_size: number }>(
+      `/kyc/admin/calls${q}`
+    )
+  },
 }
 
 // ── Phase 9 additions ─────────────────────────────────────────────────────────
@@ -2847,6 +2876,9 @@ export const kycAgent = {
     request<VerificationCallResponse>(`/kyc/agent/submissions/${submissionId}/calls`, {
       method: "POST", body: JSON.stringify({}),
     }),
+
+  listCalls: (submissionId: string) =>
+    request<VerificationCallRecord[]>(`/kyc/agent/submissions/${submissionId}/calls`),
 
   saveCallNotes: (callId: string, data: { call_outcome: string; call_notes?: string }) =>
     request<{ detail: string }>(`/kyc/agent/calls/${callId}/notes`, {
