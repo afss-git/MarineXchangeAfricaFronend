@@ -418,26 +418,29 @@ function fmtTimer(secs: number) {
 }
 
 const OUTCOMES = [
-  { value: "identity_confirmed",       label: "Identity Confirmed",  color: "bg-green-100 text-green-700 border-green-300"  },
-  { value: "identity_not_confirmed",   label: "Not Confirmed",       color: "bg-red-100 text-red-700 border-red-300"        },
-  { value: "additional_info_gathered", label: "Info Gathered",       color: "bg-blue-100 text-blue-700 border-blue-300"     },
-  { value: "callback_requested",       label: "Callback Requested",  color: "bg-yellow-100 text-yellow-700 border-yellow-300"},
-  { value: "suspicious",               label: "Suspicious",          color: "bg-orange-100 text-orange-700 border-orange-300"},
+  { value: "identity_confirmed",       label: "✅ Identity Confirmed",  color: "bg-green-50 text-green-800 border-green-300"   },
+  { value: "identity_not_confirmed",   label: "❌ Not Confirmed",       color: "bg-red-50 text-red-800 border-red-300"         },
+  { value: "additional_info_gathered", label: "ℹ️ Info Gathered",      color: "bg-blue-50 text-blue-800 border-blue-300"      },
+  { value: "callback_requested",       label: "📅 Callback Requested", color: "bg-yellow-50 text-yellow-800 border-yellow-300"},
+  { value: "suspicious",               label: "⚠️ Suspicious",         color: "bg-orange-50 text-orange-800 border-orange-300"},
 ]
 
+type CallPhase = "idle" | "connecting" | "active" | "ending" | "notes" | "saved"
+
+const ENDED_STATUSES = new Set(["completed", "failed", "cancelled", "no_answer", "busy"])
+
 function CallPanel({ submissionId }: { submissionId: string }) {
-  const [calling, setCalling]           = useState(false)
-  const [callResult, setCallResult]     = useState<{ call_id: string } | null>(null)
-  const [callOutcome, setCallOutcome]   = useState("")
-  const [callNotes, setCallNotes]       = useState("")
-  const [savingNotes, setSavingNotes]   = useState(false)
-  const [notesSaved, setNotesSaved]     = useState(false)
-  const [error, setError]               = useState<string | null>(null)
-  const [modalOpen, setModalOpen]       = useState(false)
-  const [callSeconds, setCallSeconds]   = useState(0)
-  const [callEnded, setCallEnded]       = useState(false)
-  const [history, setHistory]           = useState<VerificationCallRecord[]>([])
-  const [histLoading, setHistLoading]   = useState(true)
+  const [phase, setPhase]             = useState<CallPhase>("idle")
+  const [callId, setCallId]           = useState<string | null>(null)
+  const [callOutcome, setCallOutcome] = useState("")
+  const [callNotes, setCallNotes]     = useState("")
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [ending, setEnding]           = useState(false)
+  const [error, setError]             = useState<string | null>(null)
+  const [callSeconds, setCallSeconds] = useState(0)
+  const [dbStatus, setDbStatus]       = useState("")
+  const [history, setHistory]         = useState<VerificationCallRecord[]>([])
+  const [histLoading, setHistLoading] = useState(true)
 
   const refreshHistory = () =>
     kycAgent.listCalls(submissionId).then(setHistory).catch(() => {})
@@ -447,48 +450,69 @@ function CallPanel({ submissionId }: { submissionId: string }) {
       .then(setHistory).catch(() => {}).finally(() => setHistLoading(false))
   }, [submissionId])
 
-  // Live call timer
+  // Timer — runs while call is active
   useEffect(() => {
-    if (!modalOpen || callEnded) return
+    if (phase !== "active" && phase !== "connecting") return
     const id = setInterval(() => setCallSeconds((s) => s + 1), 1000)
     return () => clearInterval(id)
-  }, [modalOpen, callEnded])
+  }, [phase])
 
-  async function handleCall() {
-    setCalling(true)
+  // Poll call status every 3s while active — auto-transition when AT ends the call
+  useEffect(() => {
+    if (phase !== "active" || !callId) return
+    const id = setInterval(async () => {
+      try {
+        const rec = await kycAgent.getCall(callId)
+        setDbStatus(rec.status)
+        if (ENDED_STATUSES.has(rec.status)) {
+          clearInterval(id)
+          setPhase("notes")
+        }
+      } catch { /* ignore polling errors */ }
+    }, 3000)
+    return () => clearInterval(id)
+  }, [phase, callId])
+
+  async function handleStartCall() {
     setError(null)
     setCallSeconds(0)
-    setCallEnded(false)
     setCallOutcome("")
     setCallNotes("")
-    setNotesSaved(false)
+    setDbStatus("")
+    setPhase("connecting")
     try {
       const result = await kycAgent.initiateCall(submissionId)
-      setCallResult(result)
-      setModalOpen(true)
+      setCallId(result.call_id)
+      setPhase("active")
       refreshHistory()
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Failed to initiate call")
-    } finally {
-      setCalling(false)
+      setPhase("idle")
     }
   }
 
-  function handleEndCall() {
-    setCallEnded(true)
+  async function handleEndCall() {
+    if (!callId) { setPhase("notes"); return }
+    setEnding(true)
+    try {
+      await kycAgent.endCall(callId)
+    } catch { /* AT end failed — still proceed to notes */ }
+    finally { setEnding(false) }
+    setPhase("notes")
+    refreshHistory()
   }
 
   async function handleSaveNotes() {
-    if (!callResult || !callOutcome) return
+    if (!callId || !callOutcome) return
     setSavingNotes(true)
     try {
-      await kycAgent.saveCallNotes(callResult.call_id, {
+      await kycAgent.saveCallNotes(callId, {
         call_outcome: callOutcome,
         call_notes: callNotes.trim() || undefined,
       })
-      setNotesSaved(true)
+      setPhase("saved")
       refreshHistory()
-      setTimeout(() => setModalOpen(false), 1500)
+      setTimeout(() => setPhase("idle"), 2000)
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Failed to save notes")
     } finally {
@@ -496,60 +520,71 @@ function CallPanel({ submissionId }: { submissionId: string }) {
     }
   }
 
+  const modalOpen = phase !== "idle"
+
   return (
     <div className="p-5 space-y-4">
       <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Verification Call</p>
 
-      {/* Start call button */}
-      <div className="p-3 bg-ocean/5 border border-ocean/20 rounded-lg space-y-1">
-        <p className="text-xs text-text-secondary">
-          <span className="font-medium text-text-primary">Your registered phone</span> will ring first.
-          Once you answer, you&apos;ll be connected to the buyer. The call is recorded automatically.
-        </p>
+      {/* ── Pre-call info ─────────────────────────────────────── */}
+      <div className="p-4 bg-ocean/5 border border-ocean/20 rounded-xl space-y-2">
+        <div className="flex items-start gap-2">
+          <Phone className="w-4 h-4 text-ocean mt-0.5 shrink-0" />
+          <div className="space-y-1 text-xs text-text-secondary">
+            <p><span className="font-semibold text-text-primary">This is a phone call, not a browser call.</span></p>
+            <p>When you click Start Call, Africa&apos;s Talking will ring your registered phone number. Answer it — you&apos;ll then be connected to the buyer. The browser is only the control panel.</p>
+            <p className="text-orange-600 font-medium">🎙 Do NOT look for audio in the browser — it will be on your phone.</p>
+          </div>
+        </div>
       </div>
+
       {error && <ErrorBar msg={error} />}
-      <Button size="sm" onClick={handleCall} disabled={calling}
+
+      <Button onClick={handleStartCall} disabled={phase !== "idle"}
         className="bg-ocean hover:bg-ocean-dark text-white gap-1.5">
-        {calling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PhoneCall className="w-3.5 h-3.5" />}
-        {calling ? "Connecting..." : "Start Call"}
+        <PhoneCall className="w-3.5 h-3.5" /> Start Verification Call
       </Button>
 
-      {/* ── Call Modal ───────────────────────────────────────────────── */}
+      {/* ── Call Modal ───────────────────────────────────────────── */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
 
-            {/* Header */}
+            {/* Header bar */}
             <div className={cn(
-              "px-6 py-5 flex items-center justify-between",
-              callEnded ? "bg-gray-800" : "bg-navy"
+              "px-6 py-4 flex items-center justify-between",
+              phase === "saved"   ? "bg-green-600" :
+              phase === "notes"   ? "bg-gray-700"  :
+              phase === "ending"  ? "bg-orange-600":
+              "bg-[#0F2A44]"
             )}>
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center",
-                  callEnded ? "bg-gray-600" : "bg-white/20"
-                )}>
-                  <Phone className="w-5 h-5 text-white" />
+                <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+                  {phase === "saved" ? <CheckCircle2 className="w-5 h-5 text-white" />
+                    : phase === "notes" ? <ClipboardCheck className="w-5 h-5 text-white" />
+                    : <Phone className="w-5 h-5 text-white" />}
                 </div>
                 <div>
-                  <p className="text-white font-semibold text-sm">
-                    {callEnded ? "Call Ended" : "Call in Progress"}
+                  <p className="text-white font-semibold text-sm leading-tight">
+                    {phase === "connecting" ? "Connecting…"
+                      : phase === "active"  ? "Call Active"
+                      : phase === "ending"  ? "Ending Call…"
+                      : phase === "notes"   ? "Record Outcome"
+                      : phase === "saved"   ? "Notes Saved"
+                      : "Verification Call"}
                   </p>
-                  <p className="text-white/60 text-xs">Verification Call · Recorded</p>
+                  <p className="text-white/60 text-xs">KYC Verification · Recorded</p>
                 </div>
               </div>
               {/* Timer */}
               <div className="text-right">
-                <p className={cn(
-                  "text-2xl font-mono font-bold tabular-nums",
-                  callEnded ? "text-gray-400" : "text-white"
-                )}>
+                <p className="text-white text-2xl font-mono font-bold tabular-nums">
                   {fmtTimer(callSeconds)}
                 </p>
-                {!callEnded && (
-                  <div className="flex items-center gap-1 justify-end mt-0.5">
+                {phase === "active" && (
+                  <div className="flex items-center gap-1 justify-end">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                    <span className="text-white/60 text-xs">LIVE</span>
+                    <span className="text-white/60 text-xs">REC</span>
                   </div>
                 )}
               </div>
@@ -558,106 +593,132 @@ function CallPanel({ submissionId }: { submissionId: string }) {
             {/* Body */}
             <div className="px-6 py-5 space-y-4">
 
-              {!callEnded ? (
+              {/* ── CONNECTING ─────────────── */}
+              {phase === "connecting" && (
+                <div className="flex flex-col items-center gap-4 py-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full bg-ocean/10 flex items-center justify-center">
+                      <Phone className="w-9 h-9 text-ocean" />
+                    </div>
+                    <div className="absolute inset-0 rounded-full border-4 border-ocean/30 animate-ping" />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="font-semibold text-text-primary">Your phone is about to ring</p>
+                    <p className="text-sm text-text-secondary">Africa&apos;s Talking is calling you now.</p>
+                    <p className="text-sm font-medium text-ocean">Pick up your phone when it rings.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── ACTIVE ─────────────────── */}
+              {phase === "active" && (
                 <>
-                  {/* Status */}
-                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-sm text-green-700 font-medium">Connected — call is active</span>
+                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-green-800">Call in progress — speak on your phone</p>
+                      <p className="text-xs text-green-600">Browser has no audio. The conversation is on your physical phone.</p>
+                    </div>
                   </div>
 
-                  {/* Notes while on call */}
+                  {dbStatus && (
+                    <p className="text-xs text-text-secondary">
+                      AT status: <span className="font-medium">{dbStatus.replace(/_/g, " ")}</span>
+                    </p>
+                  )}
+
                   <div>
-                    <label className="text-xs font-medium text-text-secondary block mb-1.5">
-                      Notes (type while on call)
+                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide block mb-1.5">
+                      Notes — type while talking
                     </label>
-                    <Textarea
-                      rows={4}
-                      className="text-sm resize-none"
-                      placeholder="Key observations, what was discussed..."
-                      value={callNotes}
-                      onChange={(e) => setCallNotes(e.target.value)}
-                    />
+                    <Textarea rows={4} className="text-sm resize-none"
+                      placeholder="Key observations, what the buyer said, documents mentioned..."
+                      value={callNotes} onChange={(e) => setCallNotes(e.target.value)} />
                   </div>
 
-                  {/* End call button */}
-                  <Button
-                    onClick={handleEndCall}
-                    className="w-full bg-red-500 hover:bg-red-600 text-white gap-2"
-                  >
-                    <XIcon className="w-4 h-4" /> End Call Session
-                  </Button>
-                  <p className="text-xs text-text-secondary text-center">
-                    Hang up your phone first, then click End Call Session
+                  <div className="flex gap-2 pt-1">
+                    <Button onClick={handleEndCall} disabled={ending}
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white gap-2 py-5 text-base font-semibold">
+                      {ending
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <XIcon className="w-4 h-4" />}
+                      {ending ? "Ending…" : "End Call"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-center text-text-secondary">
+                    Hang up your phone AND click End Call to terminate both sides.
                   </p>
                 </>
-              ) : notesSaved ? (
-                <div className="flex flex-col items-center gap-3 py-4">
-                  <CheckCircle2 className="w-10 h-10 text-green-500" />
-                  <p className="text-sm font-medium text-text-primary">Notes saved successfully</p>
+              )}
+
+              {/* ── ENDING ─────────────────── */}
+              {phase === "ending" && (
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                  <p className="text-sm text-text-secondary">Ending the call on Africa&apos;s Talking…</p>
                 </div>
-              ) : (
+              )}
+
+              {/* ── NOTES ──────────────────── */}
+              {phase === "notes" && (
                 <>
-                  {/* Outcome selection */}
+                  <div className="p-3 bg-gray-50 border border-border rounded-lg text-xs text-text-secondary flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 shrink-0" />
+                    <span>Call ended · Duration: <strong>{fmtTimer(callSeconds)}</strong></span>
+                  </div>
+
                   <div>
                     <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide block mb-2">
-                      Call Outcome *
+                      Call Outcome <span className="text-red-500">*</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       {OUTCOMES.map((o) => (
-                        <button
-                          key={o.value}
-                          onClick={() => setCallOutcome(o.value)}
+                        <button key={o.value} onClick={() => setCallOutcome(o.value)}
                           className={cn(
-                            "px-3 py-2.5 rounded-lg border text-xs font-medium transition-all text-left",
+                            "px-4 py-3 rounded-xl border text-sm font-medium transition-all text-left",
                             callOutcome === o.value
-                              ? `${o.color} border-current ring-2 ring-offset-1 ring-current`
-                              : "bg-white text-text-secondary border-border hover:border-gray-300"
-                          )}
-                        >
+                              ? `${o.color} border-current ring-2 ring-offset-1 ring-current/50`
+                              : "bg-white text-text-secondary border-border hover:bg-gray-50"
+                          )}>
                           {o.label}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Notes review */}
                   <div>
                     <label className="text-xs font-medium text-text-secondary block mb-1.5">Notes</label>
-                    <Textarea
-                      rows={3}
-                      className="text-sm resize-none"
-                      placeholder="Add or edit your notes..."
-                      value={callNotes}
-                      onChange={(e) => setCallNotes(e.target.value)}
-                    />
+                    <Textarea rows={3} className="text-sm resize-none"
+                      placeholder="Review or add notes from the call..."
+                      value={callNotes} onChange={(e) => setCallNotes(e.target.value)} />
                   </div>
-
-                  <p className="text-xs text-text-secondary">Duration: {fmtTimer(callSeconds)}</p>
 
                   {error && <ErrorBar msg={error} />}
 
                   <div className="flex gap-2">
-                    <Button
-                      onClick={handleSaveNotes}
-                      disabled={savingNotes || !callOutcome}
-                      className="flex-1 bg-ocean hover:bg-ocean-dark text-white gap-1.5"
-                    >
+                    <Button onClick={handleSaveNotes} disabled={savingNotes || !callOutcome}
+                      className="flex-1 bg-ocean hover:bg-ocean-dark text-white gap-1.5">
                       {savingNotes
                         ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         : <Send className="w-3.5 h-3.5" />}
                       Save & Close
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setModalOpen(false)}
-                      className="px-4"
-                    >
+                    <Button variant="outline" onClick={() => setPhase("idle")} className="px-4">
                       Later
                     </Button>
                   </div>
                 </>
               )}
+
+              {/* ── SAVED ──────────────────── */}
+              {phase === "saved" && (
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <CheckCircle2 className="w-12 h-12 text-green-500" />
+                  <p className="font-semibold text-text-primary">Call notes saved</p>
+                  <p className="text-sm text-text-secondary">This window will close automatically.</p>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -679,8 +740,8 @@ function CallPanel({ submissionId }: { submissionId: string }) {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={cn(
                         "px-1.5 py-0.5 rounded-full text-xs font-medium",
-                        c.status === "completed"   ? "bg-gray-100 text-gray-600"  :
-                        c.status === "in_progress" ? "bg-green-100 text-green-700":
+                        c.status === "completed"   ? "bg-gray-100 text-gray-600"   :
+                        c.status === "in_progress" ? "bg-green-100 text-green-700" :
                         c.status === "failed" || c.status === "no_answer" ? "bg-red-100 text-red-600" :
                         "bg-blue-100 text-blue-700"
                       )}>

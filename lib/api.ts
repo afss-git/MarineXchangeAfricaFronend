@@ -2885,6 +2885,14 @@ export const kycAgent = {
       method: "PATCH", body: JSON.stringify(data),
     }),
 
+  endCall: (callId: string) =>
+    request<{ detail: string; ended_via_at: boolean }>(`/kyc/agent/calls/${callId}/end`, {
+      method: "POST", body: JSON.stringify({}),
+    }),
+
+  getCall: (callId: string) =>
+    request<VerificationCallRecord>(`/kyc/agent/calls/${callId}`),
+
   // Stream document inline — returns a blob URL for <img>/<iframe> display
   // Agents get a watermarked copy; admins get the original
   streamDocument: (documentId: string) =>
