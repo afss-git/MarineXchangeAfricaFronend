@@ -2843,14 +2843,14 @@ export const kycAgent = {
     ),
 
   // Verification calls
-  initiateCall: (submissionId: string, data: { buyer_phone: string; agent_phone: string }) =>
-    request<VerificationCallResponse>(`/kyc/agent/submissions/${submissionId}/call`, {
-      method: "POST", body: JSON.stringify(data),
+  initiateCall: (submissionId: string) =>
+    request<VerificationCallResponse>(`/kyc/agent/submissions/${submissionId}/calls`, {
+      method: "POST", body: JSON.stringify({}),
     }),
 
   saveCallNotes: (callId: string, data: { call_outcome: string; call_notes?: string }) =>
-    request<{ message: string }>(`/kyc/agent/calls/${callId}/notes`, {
-      method: "POST", body: JSON.stringify(data),
+    request<{ detail: string }>(`/kyc/agent/calls/${callId}/notes`, {
+      method: "PATCH", body: JSON.stringify(data),
     }),
 
   // Stream document inline — returns a blob URL for <img>/<iframe> display

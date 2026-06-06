@@ -398,8 +398,6 @@ function DocVerifyPanel({ doc, submissionId, existingVerification, onDone }: {
 // ── Call Panel ─────────────────────────────────────────────────────────────────
 
 function CallPanel({ submissionId }: { submissionId: string }) {
-  const [agentPhone, setAgentPhone] = useState("")
-  const [buyerPhone, setBuyerPhone] = useState("")
   const [calling, setCalling] = useState(false)
   const [callResult, setCallResult] = useState<{ call_id: string } | null>(null)
   const [callOutcome, setCallOutcome] = useState("")
@@ -409,17 +407,10 @@ function CallPanel({ submissionId }: { submissionId: string }) {
   const [notesSaved, setNotesSaved] = useState(false)
 
   async function handleCall() {
-    if (!agentPhone.trim() || !buyerPhone.trim()) {
-      setError("Both phone numbers are required (E.164 format, e.g. +234...).")
-      return
-    }
     setCalling(true)
     setError(null)
     try {
-      const result = await kycAgent.initiateCall(submissionId, {
-        agent_phone: agentPhone.trim(),
-        buyer_phone: buyerPhone.trim(),
-      })
+      const result = await kycAgent.initiateCall(submissionId)
       setCallResult(result)
     } catch (e: unknown) {
       setError((e as Error)?.message ?? "Failed to initiate call")
@@ -458,19 +449,14 @@ function CallPanel({ submissionId }: { submissionId: string }) {
 
       {!callResult ? (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-text-secondary block mb-1">Your Phone (Agent)</label>
-              <Input placeholder="+234..." value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} className="text-sm" />
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary block mb-1">Buyer&apos;s Phone</label>
-              <Input placeholder="+234..." value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} className="text-sm" />
-            </div>
+          <div className="p-3 bg-ocean/5 border border-ocean/20 rounded-lg space-y-1">
+            <p className="text-xs text-text-secondary">
+              <span className="font-medium text-text-primary">Your registered phone</span> will ring first. Once you answer, you&apos;ll be bridged to the buyer&apos;s verified phone. The call is recorded with a consent notice.
+            </p>
+            <p className="text-xs text-text-secondary">
+              Ensure your profile has a phone number set before starting.
+            </p>
           </div>
-          <p className="text-xs text-text-secondary">
-            Your phone will ring first. Once you answer, you&apos;ll be connected to the buyer. Call is recorded with consent notice.
-          </p>
           {error && <ErrorBar msg={error} />}
           <Button size="sm" onClick={handleCall} disabled={calling} className="bg-ocean hover:bg-ocean-dark text-white gap-1.5">
             {calling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PhoneCall className="w-3.5 h-3.5" />}
