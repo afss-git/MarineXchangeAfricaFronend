@@ -15,6 +15,7 @@ import {
   AlertCircle,
   TrendingUp,
   Loader2,
+  Clock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -198,6 +199,7 @@ export default function ProfilePage() {
   }
 
   const isBuyerOnly = roles.includes("buyer") && !roles.includes("seller") && !roles.includes("buyer_seller")
+  const isPendingSellerApproval = roles.includes("seller") && authUser?.account_status === "pending_review"
 
   const initials = fullName
     ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -325,8 +327,16 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {/* Seller approval pending banner (persists across page loads) */}
+          {isPendingSellerApproval && (
+            <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg text-warning text-sm">
+              <Clock className="w-4 h-4 shrink-0" />
+              Your seller application is under admin review. You'll receive an email once approved.
+            </div>
+          )}
+
           {/* Upgrade to Seller */}
-          {isBuyerOnly && !upgradeSuccess && (
+          {isBuyerOnly && !upgradeSuccess && !isPendingSellerApproval && (
             <div data-tour="profile-upgrade-seller" className="p-4 rounded-xl border border-ocean/30 bg-ocean/5 space-y-3">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-ocean" />
@@ -372,8 +382,8 @@ export default function ProfilePage() {
             </div>
           )}
           {upgradeSuccess && (
-            <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/20 rounded-lg text-success text-sm">
-              <CheckCircle2 className="w-4 h-4 shrink-0" /> You now have a Seller account. Refresh to see updated navigation.
+            <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg text-warning text-sm">
+              <Clock className="w-4 h-4 shrink-0" /> Your seller application is under review. You'll be notified by email once approved.
             </div>
           )}
 

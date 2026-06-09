@@ -18,6 +18,7 @@ export interface UserProfile {
   avatar_url: string | null
   roles: string[]
   kyc_status: string
+  account_status?: string
   phone_verified?: boolean
   is_active: boolean
   created_at: string
