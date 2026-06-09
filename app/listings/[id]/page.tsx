@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import {
   ArrowLeft, MapPin, Tag, Ship, Loader2, Lock, Images,
-  ChevronRight, Anchor, AlertCircle, ExternalLink,
+  ChevronRight, AlertCircle, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { marketplace, type ProductDetail } from "@/lib/api"
@@ -353,9 +354,11 @@ function PublicNav() {
   return (
     <nav className="bg-white border-b border-border sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 font-extrabold text-navy text-base">
-          <Anchor className="w-5 h-5 text-ocean" />
-          <span>Harbours<span className="text-ocean">360</span></span>
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-white border border-border">
+            <Image src="/logo-icon.png" alt="Harbours360" width={32} height={32} className="w-full h-full object-contain" />
+          </div>
+          <span className="font-extrabold text-base text-navy">Harbours<span className="text-ocean">360</span></span>
         </Link>
         <div className="flex items-center gap-2">
           <Link href="/login">
