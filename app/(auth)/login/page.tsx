@@ -25,6 +25,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionExpired = searchParams.get("reason") === "session_expired"
+  const emailConfirmed = searchParams.get("confirmed") === "true"
   const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -110,8 +111,8 @@ function LoginForm() {
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center px-6 py-12 bg-white">
         {/* Mobile Logo */}
         <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center">
-            <Image src="/logo-icon.png" alt="Harbours360" width={40} height={40} className="w-full h-full object-cover" />
+          <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-white border border-border">
+            <Image src="/logo-icon.png" alt="Harbours360" width={40} height={40} className="w-full h-full object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="text-xl font-bold tracking-tight">
@@ -130,6 +131,13 @@ function LoginForm() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email confirmed notice */}
+            {emailConfirmed && !errors.form && (
+              <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                <p className="text-success text-sm font-medium">Your email has been confirmed. You can now sign in.</p>
+              </div>
+            )}
+
             {/* Session expired notice */}
             {sessionExpired && !errors.form && (
               <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
