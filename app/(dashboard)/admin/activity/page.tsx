@@ -51,8 +51,9 @@ function fmtTs(ts: string) {
   })
 }
 
-function tryPretty(raw: string | null) {
-  if (!raw) return ""
+function tryPretty(raw: string | object | null) {
+  if (raw === null || raw === undefined) return ""
+  if (typeof raw === "object") return JSON.stringify(raw, null, 2)
   try {
     return JSON.stringify(JSON.parse(raw), null, 2)
   } catch {

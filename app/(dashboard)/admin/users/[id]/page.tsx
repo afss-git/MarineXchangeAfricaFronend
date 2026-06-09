@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import {
   admin as adminApi,
   creditProfiles,
+  ApiRequestError,
   type AdminUserItem,
   type BuyerCreditProfile,
 } from "@/lib/api"
@@ -78,7 +79,13 @@ function CreditProfilePanel({ userId }: { userId: string }) {
         setRiskRating((p.risk_rating ?? "") as typeof riskRating)
         setNotes(p.notes ?? "")
       })
-      .catch((e) => setError(e?.message ?? "Failed to load credit profile."))
+      .catch((e: unknown) => {
+        if (e instanceof ApiRequestError && e.status === 404) {
+          setProfile(null)
+        } else {
+          setError((e as Error)?.message ?? "Failed to load credit profile.")
+        }
+      })
       .finally(() => setIsLoading(false))
   }, [userId])
 
