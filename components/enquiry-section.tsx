@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Send, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const ENQUIRY_EMAIL = "cobwebb784@gmail.com"
+const ENQUIRY_EMAIL = "info@habours360.com"
 
 const enquiryTypes = [
   "Select enquiry type",

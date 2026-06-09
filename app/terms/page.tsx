@@ -1,5 +1,32 @@
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, FileText } from "lucide-react"
+
+const legalDocs = [
+  {
+    title: "Vendor Agreement",
+    description: "Terms governing registered Vendors listing and supplying goods and services through the Harbours360 platform, including compliance obligations, pricing, delivery, payment terms, liability, and dispute resolution.",
+    href: "/legal/vendor-agreement",
+    clauses: "10 clauses",
+  },
+  {
+    title: "Buyer Agreement",
+    description: "Terms governing registered Buyers procuring goods and services through the platform, including platform role, buyer obligations, payment, inspection, regulatory compliance, and dispute resolution.",
+    href: "/legal/buyer-agreement",
+    clauses: "7 clauses",
+  },
+  {
+    title: "Escrow Agreement",
+    description: "Framework for secure financial transactions via Optimus Bank. Covers the role of Harbours360 as escrow intermediary, the step-by-step escrow process, dispute handling during escrow, and liability.",
+    href: "/legal/escrow",
+    clauses: "4 sections",
+  },
+  {
+    title: "Platform Compliance Manual",
+    description: "Harbours360’s compliance framework covering corporate governance (CAMA 2020), industry regulations (PIA 2021, NIMASA, NPA), anti-money laundering (AML/KYC), vendor monitoring, data protection (NDPA 2023), and risk management.",
+    href: "/legal/compliance",
+    clauses: "6 sections",
+  },
+]
 
 export default function TermsPage() {
   return (
@@ -12,75 +39,44 @@ export default function TermsPage() {
         <div className="mb-10">
           <span className="text-ocean text-xs font-semibold tracking-[0.15em] uppercase mb-3 block">Legal</span>
           <h1 className="text-navy font-extrabold mb-3" style={{ fontSize: "clamp(28px, 4vw, 40px)", letterSpacing: "-0.03em" }}>
-            Terms of Service
+            Legal Documents
           </h1>
-          <p className="text-text-secondary text-sm">Last updated: January 2025</p>
+          <p className="text-text-secondary text-sm leading-relaxed">
+            Harbours360, operated by <strong className="text-navy">Harbour Limited (RC 9553415)</strong>, provides a B2B digital marketplace for maritime and industrial asset transactions in Africa. The documents below govern all use of the platform, transactions between Buyers and Vendors, data handling, and our compliance framework.
+          </p>
         </div>
 
-        <div className="prose prose-sm max-w-none text-text-secondary space-y-8">
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">1. Platform Use</h2>
-            <p className="leading-relaxed">
-              Harbours360 is a B2B marketplace for maritime and industrial asset transactions. Access is restricted to registered businesses and professionals. By using the platform you confirm that you have the legal authority to act on behalf of your organisation.
-            </p>
-          </section>
+        <div className="space-y-4">
+          {legalDocs.map((doc) => (
+            <Link
+              key={doc.href}
+              href={doc.href}
+              className="block group border border-border rounded-2xl p-6 hover:border-ocean/40 hover:shadow-sm transition-all"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-ocean/8 flex items-center justify-center shrink-0 group-hover:bg-ocean/15 transition-colors">
+                  <FileText className="w-5 h-5 text-ocean" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <h2 className="text-navy font-bold text-base group-hover:text-ocean transition-colors">{doc.title}</h2>
+                    <span className="text-xs text-text-secondary bg-surface px-2 py-0.5 rounded-full border border-border shrink-0">{doc.clauses}</span>
+                  </div>
+                  <p className="text-text-secondary text-sm leading-relaxed">{doc.description}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
 
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">2. KYC Verification</h2>
-            <p className="leading-relaxed">
-              All users must complete identity and business verification (KYC) before transacting. Providing false or misleading information during KYC will result in immediate account suspension and may be reported to relevant authorities.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">3. Listings & Accuracy</h2>
-            <p className="leading-relaxed">
-              Sellers are responsible for the accuracy of all listing information, including asset condition, ownership status, and pricing. Harbours360 verifies listings on a best-efforts basis but does not guarantee the accuracy of user-submitted content.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">4. Transactions & Escrow</h2>
-            <p className="leading-relaxed">
-              Transactions conducted through the platform are subject to escrow terms agreed at the time of deal creation. Funds held in escrow are released only when agreed delivery conditions are satisfied. Disputes are handled in accordance with our dispute resolution process.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">5. Fees</h2>
-            <p className="leading-relaxed">
-              Platform fees and transaction commissions are disclosed in your account dashboard. Fees are non-refundable on successfully closed transactions. Harbours360 reserves the right to update fee schedules with 30 days notice.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">6. Prohibited Activities</h2>
-            <p className="leading-relaxed">
-              Users may not use the platform for money laundering, fraud, sanctions evasion, or any activity that violates applicable law. Harbours360 monitors transactions and will report suspicious activity to relevant authorities.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">7. Limitation of Liability</h2>
-            <p className="leading-relaxed">
-              Harbours360 acts as a marketplace intermediary and is not a party to transactions between buyers and sellers. Our liability is limited to the fees paid to us in connection with the relevant transaction.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">8. Governing Law</h2>
-            <p className="leading-relaxed">
-              These terms are governed by applicable law in the jurisdiction of incorporation of Harbours360. Disputes not resolved through our internal process may be submitted to binding arbitration.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-navy font-bold text-lg mb-3">9. Contact</h2>
-            <p className="leading-relaxed">
-              For terms-related enquiries, contact{" "}
-              <a href="mailto:cobwebb784@gmail.com" className="text-ocean hover:underline">cobwebb784@gmail.com</a>.
-            </p>
-          </section>
+        <div className="mt-10 pt-8 border-t border-border">
+          <p className="text-text-secondary text-sm leading-relaxed">
+            The <Link href="/privacy" className="text-ocean hover:underline">Privacy Policy</Link> governs data collection and processing on the platform in accordance with the Nigerian Data Protection Act (NDPA) 2023.
+          </p>
+          <p className="text-text-secondary text-sm leading-relaxed mt-3">
+            For legal enquiries, contact{" "}
+            <a href="mailto:info@habours360.com" className="text-ocean hover:underline">info@habours360.com</a>.
+          </p>
         </div>
       </div>
     </div>

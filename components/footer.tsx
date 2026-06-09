@@ -13,20 +13,20 @@ const companyLinks = [
   { label: "About Harbours360", href: "/#about" },
   { label: "Contact Us", href: "/#enquiry" },
   { label: "FAQ", href: "/#faq" },
-  { label: "Careers", href: "mailto:cobwebb784@gmail.com?subject=Careers Enquiry — Harbours360" },
+  { label: "Careers", href: "mailto:info@habours360.com?subject=Careers Enquiry — Harbours360" },
 ]
 
 const legalLinks = [
   { label: "Terms of Service", href: "/terms" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Cookie Policy", href: "/privacy#cookies" },
-  { label: "Compliance", href: "/terms#compliance" },
+  { label: "Compliance", href: "/legal/compliance" },
 ]
 
 const socialLinks = [
   { label: "LinkedIn", href: "https://linkedin.com" },
   { label: "X / Twitter", href: "https://x.com" },
-  { label: "Email", href: "mailto:cobwebb784@gmail.com" },
+  { label: "Email", href: "mailto:info@habours360.com" },
 ]
 
 export function Footer() {
