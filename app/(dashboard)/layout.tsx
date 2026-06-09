@@ -28,12 +28,13 @@ import {
   BadgeCheck,
   UserCircle,
   Building2,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { notifications as notifApi } from "@/lib/api";
+import { notifications as notifApi, adminAccounts } from "@/lib/api";
 import { usePageLoader } from "@/components/page-loader"
 import { NotificationToastProvider } from "@/components/notification-toast";
 
@@ -63,6 +64,7 @@ const buyerSellerNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { href: "/admin",                   label: "Admin Dashboard",    icon: BarChart3 },
+  { href: "/admin/accounts/pending",  label: "Pending Approvals",  icon: UserCog },
   { href: "/admin/users",             label: "Users",              icon: Users },
   { href: "/admin/buyers",            label: "Buyers",             icon: UserCircle },
   { href: "/admin/sellers",           label: "Sellers",            icon: Building2 },
@@ -151,6 +153,7 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingAccountsCount, setPendingAccountsCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
@@ -184,6 +187,18 @@ export default function DashboardLayout({
       .catch(() => {/* silent */});
   }, [isAuthenticated, pathname]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchPending = () => {
+      adminAccounts.listPending({ page_size: 1 })
+        .then((res) => setPendingAccountsCount(res.total))
+        .catch(() => {/* only visible to admins */});
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 60000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
   if (isLoading) {
     // PageLoaderProvider is above us in the tree — render blank bg, loader overlay handles it
     return <div className="min-h-screen bg-surface" />;
@@ -200,9 +215,14 @@ export default function DashboardLayout({
   // Build nav items based on role priority: admin > agent > buyer/seller
   const renderNav = () => {
     if (isAdmin) {
+      const liveAdminNav = adminNav.map((item) =>
+        item.href === "/admin/accounts/pending"
+          ? { ...item, badge: pendingAccountsCount }
+          : item
+      );
       return (
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {adminNav.map((item) => (
+          {liveAdminNav.map((item) => (
             <NavLink
               key={item.href}
               item={item}

@@ -1543,6 +1543,7 @@ export const admin = {
     page_size?: number
     role?: string
     kyc_status?: string
+    account_status?: string
     is_active?: boolean
     search?: string
   }) => {
@@ -3192,6 +3193,45 @@ export const exchangeRates = {
 }
 
 // sellerDashboard already exported above (line ~575)
+
+// ── Admin Pending Accounts ────────────────────────────────────────────────────
+
+export interface PendingAccount {
+  id: string
+  full_name: string | null
+  company_name: string | null
+  phone: string | null
+  country: string | null
+  roles: string[]
+  account_status: string
+  created_at: string
+  email: string
+  pending_days: number
+  overdue: boolean
+  pending_requests: number
+  pending_listings: number
+}
+
+export interface PendingAccountList {
+  items: PendingAccount[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export const adminAccounts = {
+  listPending: (params?: { role?: string; page?: number; page_size?: number }) => {
+    const qs = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, String(v))
+      })
+    }
+    const query = qs.toString() ? `?${qs}` : ""
+    return request<PendingAccountList>(`/admin/accounts/pending${query}`)
+  },
+}
 
 // ── Admin Buyer / Seller detail endpoints ─────────────────────────────────────
 
