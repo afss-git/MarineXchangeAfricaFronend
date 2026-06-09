@@ -18,16 +18,10 @@ export const metadata: Metadata = {
   keywords: ['maritime', 'industrial assets', 'B2B marketplace', 'Africa', 'vessels', 'offshore equipment'],
   icons: {
     icon: [
-      { url: '/favicon.ico',           sizes: 'any' },
-      { url: '/favicon-16x16.png',     sizes: '16x16', type: 'image/png' },
-      { url: '/icon-light-32x32.png',  sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
-      { url: '/icon-dark-32x32.png',   sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: dark)' },
+      { url: '/logo-icon.png', type: 'image/png' },
+      { url: '/favicon.ico',   sizes: 'any' },
     ],
-    apple: '/apple-icon.png',
-    other: [
-      { rel: 'android-chrome', url: '/android-chrome-192x192.png', sizes: '192x192' },
-      { rel: 'android-chrome', url: '/android-chrome-512x512.png', sizes: '512x512' },
-    ],
+    apple: '/logo-icon.png',
   },
 }
 
