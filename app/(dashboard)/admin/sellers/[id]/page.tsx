@@ -8,10 +8,11 @@ import {
   Loader2, RefreshCw, ExternalLink, UserX, UserCheck2,
   ChevronDown, ChevronUp, ImageIcon, FileText, CheckCircle2,
   Clock, Tag, Wrench, FileCheck, Download, X, ThumbsUp, ThumbsDown,
-  RotateCcw, Trash2, UserPlus,
+  RotateCcw, Trash2, UserPlus, XCircle, Ban,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { usePageLoader } from "@/components/page-loader"
 import {
@@ -1718,6 +1719,134 @@ function FileTextIcon({ className }: { className?: string }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// ── Account Status Panel ──────────────────────────────────────────────────────
+
+const ACCOUNT_STATUS_CFG: Record<string, { label: string; icon: React.ElementType }> = {
+  pending_review: { label: "Pending Review", icon: Clock },
+  approved:       { label: "Approved",       icon: CheckCircle2 },
+  rejected:       { label: "Rejected",       icon: XCircle },
+  banned:         { label: "Banned",         icon: Ban },
+}
+
+function SellerAccountStatusPanel({ profile, sellerId, onRefresh }: {
+  profile: AdminSellerDetail["profile"]
+  sellerId: string
+  onRefresh: () => void
+}) {
+  const [action, setAction] = useState<"approve" | "reject" | "ban" | null>(null)
+  const [reason, setReason] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const cfg = ACCOUNT_STATUS_CFG[profile.account_status] ?? ACCOUNT_STATUS_CFG.pending_review
+  const StatusIcon = cfg.icon
+  const isPending = profile.account_status === "pending_review"
+  const isApproved = profile.account_status === "approved"
+
+  const colorCls = isPending ? "text-warning" : isApproved ? "text-success" : "text-danger"
+  const bgCls = isPending ? "bg-warning/5 border-warning/20" : isApproved ? "bg-success/5 border-success/20" : "bg-danger/5 border-danger/20"
+  const iconBgCls = isPending ? "bg-warning/10" : isApproved ? "bg-success/10" : "bg-danger/10"
+
+  async function submit() {
+    if (!action) return
+    if (action === "reject" && !reason.trim()) { setErr("A reason is required to reject."); return }
+    setLoading(true); setErr(null)
+    try {
+      if (action === "approve") await adminSellers.approve(sellerId)
+      else if (action === "reject") await adminSellers.reject(sellerId, reason.trim())
+      else await adminSellers.ban(sellerId, reason.trim() || undefined)
+      setAction(null); setReason("")
+      onRefresh()
+    } catch (e: any) {
+      setErr(e.message ?? "Action failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className={`rounded-xl border px-5 py-4 ${bgCls}`}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${iconBgCls}`}>
+            <StatusIcon className={`w-4 h-4 ${colorCls}`} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-primary">
+              Account Status: <span className={colorCls}>{cfg.label}</span>
+            </p>
+            {profile.account_status_changed_at && (
+              <p className="text-xs text-text-secondary">
+                Changed on {new Date(profile.account_status_changed_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+              </p>
+            )}
+            {isPending && <p className="text-xs text-text-secondary">Awaiting admin review before full access is granted.</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isPending && (
+            <>
+              <Button size="sm" className="bg-success text-white hover:bg-success/90 gap-1.5" onClick={() => setAction("approve")}>
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+              </Button>
+              <Button size="sm" variant="outline" className="text-danger border-danger/30 hover:bg-danger/5 gap-1.5" onClick={() => setAction("reject")}>
+                <XCircle className="w-3.5 h-3.5" /> Reject
+              </Button>
+              <Button size="sm" variant="outline" className="text-danger border-danger/30 hover:bg-danger/5 gap-1.5" onClick={() => setAction("ban")}>
+                <Ban className="w-3.5 h-3.5" /> Ban
+              </Button>
+            </>
+          )}
+          {isApproved && (
+            <Button size="sm" variant="outline" className="text-danger border-danger/30 hover:bg-danger/5 gap-1.5" onClick={() => setAction("ban")}>
+              <Ban className="w-3.5 h-3.5" /> Ban Account
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {action && (
+        <div className="mt-4 pt-4 border-t border-border space-y-3">
+          <p className="text-sm font-medium text-text-primary">
+            {action === "approve" ? `Approve ${profile.full_name || profile.email}?` :
+             action === "reject" ? "Reject this account" : "Ban this account"}
+          </p>
+          {action !== "approve" && (
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">
+                {action === "reject" ? "Reason (required — shown to seller)" : "Reason (optional)"}
+              </label>
+              <Input
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                placeholder={action === "reject" ? "e.g. Insufficient company documentation" : "e.g. Fraudulent activity detected"}
+                className="text-sm"
+              />
+            </div>
+          )}
+          {err && (
+            <div className="flex items-center gap-2 p-3 bg-danger/10 border border-danger/20 rounded-lg text-danger text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0" />{err}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={submit}
+              disabled={loading}
+              className={action === "approve" ? "bg-success text-white hover:bg-success/90" : "bg-danger text-white hover:bg-danger/90"}
+            >
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
+              Confirm {action === "approve" ? "Approval" : action === "reject" ? "Rejection" : "Ban"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setAction(null); setReason(""); setErr(null) }}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const TABS = [
   { key: "overview",  label: "Overview",   icon: Building2 },
   { key: "listings",  label: "Listings",   icon: Package },
@@ -1837,6 +1966,9 @@ export default function SellerDetailPage() {
           <AlertCircle className="w-4 h-4 shrink-0" />{actionError}
         </div>
       )}
+
+      {/* Account status panel */}
+      <SellerAccountStatusPanel profile={profile} sellerId={sellerId} onRefresh={load} />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border overflow-x-auto">

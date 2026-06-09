@@ -3203,6 +3203,12 @@ export const adminBuyers = {
     return request<{ items: AdminUserItem[]; total: number; page: number; page_size: number; pages: number }>(`/admin/buyers${q}`)
   },
   getDetail: (id: string) => request<AdminBuyerDetail>(`/admin/buyers/${id}`),
+  approve: (id: string, reason?: string) =>
+    request<{ status: string }>(`/admin/buyers/${id}/approve`, { method: "POST", body: JSON.stringify({ reason }) }),
+  reject: (id: string, reason: string) =>
+    request<{ status: string }>(`/admin/buyers/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) }),
+  ban: (id: string, reason?: string) =>
+    request<{ status: string }>(`/admin/buyers/${id}/ban`, { method: "POST", body: JSON.stringify({ reason }) }),
 }
 
 export const adminSellers = {
@@ -3213,6 +3219,12 @@ export const adminSellers = {
     return request<{ items: AdminUserItem[]; total: number; page: number; page_size: number; pages: number }>(`/admin/sellers${q}`)
   },
   getDetail: (id: string) => request<AdminSellerDetail>(`/admin/sellers/${id}`),
+  approve: (id: string, reason?: string) =>
+    request<{ status: string }>(`/admin/sellers/${id}/approve`, { method: "POST", body: JSON.stringify({ reason }) }),
+  reject: (id: string, reason: string) =>
+    request<{ status: string }>(`/admin/sellers/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) }),
+  ban: (id: string, reason?: string) =>
+    request<{ status: string }>(`/admin/sellers/${id}/ban`, { method: "POST", body: JSON.stringify({ reason }) }),
 }
 
 export interface AdminBuyerDetail {
@@ -3221,6 +3233,7 @@ export interface AdminBuyerDetail {
     company_reg_no: string | null; phone: string | null; phone_verified?: boolean; country: string | null
     roles: string[]; kyc_status: string; kyc_expires_at: string | null
     kyc_attempt_count: number; is_active: boolean; created_at: string; updated_at: string
+    account_status: string; account_status_changed_at: string | null
   }
   kyc: {
     id: string; status: string; cycle_number: number; created_at: string
@@ -3244,6 +3257,7 @@ export interface AdminSellerDetail {
     company_reg_no: string | null; phone: string | null; country: string | null
     roles: string[]; kyc_status: string; kyc_expires_at: string | null
     is_active: boolean; created_at: string; updated_at: string
+    account_status: string; account_status_changed_at: string | null
   }
   kyc: {
     id: string; status: string; cycle_number: number; created_at: string

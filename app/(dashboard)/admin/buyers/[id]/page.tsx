@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { adminBuyers, admin, kycAdmin, type AdminBuyerDetail, type KycSubmissionResponse } from "@/lib/api"
+import { Input } from "@/components/ui/input"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,127 @@ const PR_CFG: Record<string, { label: string; className: string }> = {
   approved:     { label: "Approved",     className: "bg-success/10 text-success border-success/20" },
   rejected:     { label: "Rejected",     className: "bg-danger/10 text-danger border-danger/20" },
   completed:    { label: "Completed",    className: "bg-success/10 text-success border-success/20" },
+}
+
+const ACCOUNT_STATUS_CFG: Record<string, { label: string; className: string; icon: React.ElementType }> = {
+  pending_review: { label: "Pending Review", className: "bg-warning/10 text-warning border-warning/20",   icon: Clock },
+  approved:       { label: "Approved",        className: "bg-success/10 text-success border-success/20",   icon: CheckCircle2 },
+  rejected:       { label: "Rejected",        className: "bg-danger/10 text-danger border-danger/20",      icon: XCircle },
+  banned:         { label: "Banned",          className: "bg-danger/10 text-danger border-danger/20",      icon: Ban },
+}
+
+// ── Account Status Panel ──────────────────────────────────────────────────────
+
+function AccountStatusPanel({ profile, buyerId, onRefresh }: {
+  profile: AdminBuyerDetail["profile"]
+  buyerId: string
+  onRefresh: () => void
+}) {
+  const [action, setAction] = useState<"approve" | "reject" | "ban" | null>(null)
+  const [reason, setReason] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const cfg = ACCOUNT_STATUS_CFG[profile.account_status] ?? ACCOUNT_STATUS_CFG.pending_review
+  const StatusIcon = cfg.icon
+
+  async function submit() {
+    if (!action) return
+    if ((action === "reject") && !reason.trim()) { setErr("A reason is required to reject."); return }
+    setLoading(true); setErr(null)
+    try {
+      if (action === "approve") await adminBuyers.approve(buyerId)
+      else if (action === "reject") await adminBuyers.reject(buyerId, reason.trim())
+      else await adminBuyers.ban(buyerId, reason.trim() || undefined)
+      setAction(null); setReason("")
+      onRefresh()
+    } catch (e: any) {
+      setErr(e.message ?? "Action failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className={`rounded-xl border px-5 py-4 ${profile.account_status === "pending_review" ? "bg-warning/5 border-warning/20" : profile.account_status === "approved" ? "bg-success/5 border-success/20" : "bg-danger/5 border-danger/20"}`}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${profile.account_status === "pending_review" ? "bg-warning/10" : profile.account_status === "approved" ? "bg-success/10" : "bg-danger/10"}`}>
+            <StatusIcon className={`w-4 h-4 ${profile.account_status === "pending_review" ? "text-warning" : profile.account_status === "approved" ? "text-success" : "text-danger"}`} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-primary">Account Status: <span className={`${profile.account_status === "pending_review" ? "text-warning" : profile.account_status === "approved" ? "text-success" : "text-danger"}`}>{cfg.label}</span></p>
+            {profile.account_status_changed_at && (
+              <p className="text-xs text-text-secondary">{profile.account_status === "approved" ? "Approved" : profile.account_status === "rejected" ? "Rejected" : "Banned"} on {new Date(profile.account_status_changed_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+            )}
+            {profile.account_status === "pending_review" && (
+              <p className="text-xs text-text-secondary">Awaiting admin review before full access is granted.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {profile.account_status === "pending_review" && (
+            <>
+              <Button size="sm" className="bg-success text-white hover:bg-success/90 gap-1.5" onClick={() => setAction("approve")}>
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+              </Button>
+              <Button size="sm" variant="outline" className="text-danger border-danger/30 hover:bg-danger/5 gap-1.5" onClick={() => setAction("reject")}>
+                <XCircle className="w-3.5 h-3.5" /> Reject
+              </Button>
+              <Button size="sm" variant="outline" className="text-danger border-danger/30 hover:bg-danger/5 gap-1.5" onClick={() => setAction("ban")}>
+                <Ban className="w-3.5 h-3.5" /> Ban
+              </Button>
+            </>
+          )}
+          {profile.account_status === "approved" && (
+            <Button size="sm" variant="outline" className="text-danger border-danger/30 hover:bg-danger/5 gap-1.5" onClick={() => setAction("ban")}>
+              <Ban className="w-3.5 h-3.5" /> Ban Account
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Inline confirm form */}
+      {action && (
+        <div className="mt-4 pt-4 border-t border-border space-y-3">
+          <p className="text-sm font-medium text-text-primary">
+            {action === "approve" ? `Approve ${profile.full_name || profile.email}?` :
+             action === "reject" ? "Reject this account" : "Ban this account"}
+          </p>
+          {action !== "approve" && (
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">
+                {action === "reject" ? "Reason (required — shown to user)" : "Reason (optional)"}
+              </label>
+              <Input
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                placeholder={action === "reject" ? "e.g. Insufficient documentation provided" : "e.g. Fraudulent activity detected"}
+                className="text-sm"
+              />
+            </div>
+          )}
+          {err && <ErrorBar msg={err} />}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={submit}
+              disabled={loading}
+              className={action === "approve" ? "bg-success text-white hover:bg-success/90" : "bg-danger text-white hover:bg-danger/90"}
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+              Confirm {action === "approve" ? "Approval" : action === "reject" ? "Rejection" : "Ban"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setAction(null); setReason(""); setErr(null) }}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Components ────────────────────────────────────────────────────────────────
@@ -839,6 +961,9 @@ export default function BuyerDetailPage() {
       </div>
 
       {actionError && <ErrorBar msg={actionError} />}
+
+      {/* Account status panel */}
+      <AccountStatusPanel profile={profile} buyerId={buyerId} onRefresh={load} />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border overflow-x-auto">
