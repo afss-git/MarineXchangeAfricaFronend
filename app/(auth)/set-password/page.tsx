@@ -39,7 +39,17 @@ export default function SetPasswordPage() {
 
   const validate = () => {
     const e: typeof errors = {}
-    if (password.length < 12) e.password = "Password must be at least 12 characters"
+    if (password.length < 12) {
+      e.password = "Password must be at least 12 characters"
+    } else if (!/[A-Z]/.test(password)) {
+      e.password = "Password must contain at least one uppercase letter"
+    } else if (!/[a-z]/.test(password)) {
+      e.password = "Password must contain at least one lowercase letter"
+    } else if (!/[0-9]/.test(password)) {
+      e.password = "Password must contain at least one number"
+    } else if (!/[^A-Za-z0-9]/.test(password)) {
+      e.password = "Password must contain at least one special character"
+    }
     if (password !== confirm) e.confirm = "Passwords do not match"
     return e
   }

@@ -445,13 +445,7 @@ export default function SellerSignupPage() {
             After registration, verify your email. Then complete KYC to start listing.
           </p>
 
-          {/* Both Access Link */}
-          <p className="mt-4 text-center text-xs text-text-secondary">
-            Need both buyer and seller access?{" "}
-            <Link href="/signup/seller-buyer" className="text-ocean hover:underline">
-              Register as both
-            </Link>
-          </p>
+          {/* Dual access is granted by admin after account approval */}
           </>
           )}
         </div>
