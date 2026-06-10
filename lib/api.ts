@@ -439,6 +439,11 @@ async function request<T>(
     if (refreshResult === "server_down") {
       throw new ApiRequestError(503, { detail: "Service temporarily unavailable. Please try again in a moment." })
     }
+    // Refresh token is expired — session is dead, redirect to login
+    if (typeof window !== "undefined") {
+      window.location.href = "/login?reason=session_expired"
+    }
+    throw new ApiRequestError(401, { detail: "Session expired. Please sign in again." })
   }
 
   const body = await res.json().catch(() => null)
@@ -485,6 +490,11 @@ async function upload<T>(path: string, formData: FormData, _isRetry = false): Pr
     if (refreshResult === "server_down") {
       throw new ApiRequestError(503, { detail: "Service temporarily unavailable. Please try again in a moment." })
     }
+    // Refresh token is expired — session is dead, redirect to login
+    if (typeof window !== "undefined") {
+      window.location.href = "/login?reason=session_expired"
+    }
+    throw new ApiRequestError(401, { detail: "Session expired. Please sign in again." })
   }
 
   const body = await res.json().catch(() => null)
