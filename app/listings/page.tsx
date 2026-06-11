@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import {
   MapPin, Tag, ArrowRight, Ship, Loader2, Search,
-  SlidersHorizontal, X, Anchor, ChevronLeft, ChevronRight as ChevronRightIcon,
+  SlidersHorizontal, X, ChevronLeft, ChevronRight as ChevronRightIcon,
   ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -282,9 +283,11 @@ function CatalogContent() {
       {/* Navbar */}
       <nav className="bg-white border-b border-border sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-extrabold text-navy text-base">
-            <Anchor className="w-5 h-5 text-ocean" />
-            <span>Harbours<span className="text-ocean">360</span></span>
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
+              <Image src="/logo-icon.png" alt="Harbours360" width={32} height={32} className="w-full h-full object-contain" />
+            </div>
+            <span className="font-extrabold text-navy text-base">Harbours<span className="text-ocean">360</span></span>
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/login">
