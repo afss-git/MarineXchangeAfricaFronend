@@ -80,6 +80,7 @@ export default function AssetDetailPage() {
   // Purchase request modal state
   const [showPR, setShowPR] = useState(false)
   const [offerPrice, setOfferPrice] = useState("")
+  const [quantity, setQuantity] = useState(1)
   const [purchaseType, setPurchaseType] = useState("full_payment")
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -120,6 +121,7 @@ export default function AssetDetailPage() {
       await prApi.create({
         product_id: product.id,
         purchase_type: purchaseType,
+        quantity,
         offered_price: parseFloat(offerPrice.replace(/,/g, "")),
         offered_currency: product.currency,
         message: message || undefined,
@@ -258,6 +260,11 @@ export default function AssetDetailPage() {
               </Badge>
               <Badge variant="secondary" className="capitalize">{product.condition}</Badge>
               <Badge variant="secondary" className="capitalize">{product.availability_type.replace(/_/g, " ")}</Badge>
+              {product.available_units != null && (
+                <Badge variant="secondary" className="bg-ocean/10 text-ocean border-ocean/20">
+                  {product.available_units} units available
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -491,8 +498,32 @@ export default function AssetDetailPage() {
                 </Select>
               </div>
 
+              {(() => {
+                const units = product.available_units
+                if (!units || units <= 1) return null
+                return (
+                  <div className="space-y-2">
+                    <Label>Quantity <span className="text-text-secondary text-xs">({units} available)</span></Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={units}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Math.max(1, Math.min(units, parseInt(e.target.value) || 1)))}
+                    />
+                  </div>
+                )
+              })()}
+
               <div className="space-y-2">
-                <Label>Your Offer ({product.currency})</Label>
+                <Label>
+                  Your Offer ({product.currency})
+                  {quantity > 1 && offerPrice && (
+                    <span className="ml-2 text-text-secondary text-xs font-normal">
+                      Total: {product.currency} {(parseFloat(offerPrice) * quantity).toLocaleString()}
+                    </span>
+                  )}
+                </Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm">$</span>
                   <Input
@@ -503,6 +534,9 @@ export default function AssetDetailPage() {
                     placeholder={product.asking_price}
                   />
                 </div>
+                {quantity > 1 && (
+                  <p className="text-xs text-text-secondary">Enter your total offer price for all {quantity} units.</p>
+                )}
               </div>
 
               <div className="space-y-2">

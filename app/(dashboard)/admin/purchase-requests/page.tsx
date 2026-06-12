@@ -779,10 +779,16 @@ function PRPanel({ item, agents, onActioned }: {
           </div>
           {showConvert && (
             <div className="space-y-3">
+              {item.quantity > 1 && (
+                <div className="flex items-center gap-2 p-2.5 bg-ocean/5 border border-ocean/20 rounded-lg text-xs text-ocean">
+                  <Package className="w-4 h-4 shrink-0" />
+                  Buyer requested <strong>{item.quantity} units</strong>. Set the agreed price as the total for all units.
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-text-secondary block mb-1">
-                    Agreed Price <span className="text-danger">*</span>
+                    Agreed Price {item.quantity > 1 && <span className="text-text-secondary font-normal">(total for {item.quantity} units)</span>} <span className="text-danger">*</span>
                   </label>
                   <Input type="number" step="1" value={agreedPrice}
                     onChange={(e) => setAgreedPrice(e.target.value)} placeholder="0" />

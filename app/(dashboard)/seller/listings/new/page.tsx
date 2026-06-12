@@ -91,12 +91,13 @@ export default function NewListingPage() {
   const [fullDesc,   setFullDesc]   = useState("")
 
   // ── Pricing ─────────────────────────────────────────────────────────────────
-  const [priceType,   setPriceType]   = useState<PriceType>("Fixed Price")
-  const [fixedPrice,  setFixedPrice]  = useState("")
-  const [minPrice,    setMinPrice]    = useState("")
-  const [maxPrice,    setMaxPrice]    = useState("")
-  const [currency,    setCurrency]    = useState("USD")
-  const [negotiable,  setNegotiable]  = useState(false)
+  const [priceType,      setPriceType]      = useState<PriceType>("Fixed Price")
+  const [fixedPrice,     setFixedPrice]     = useState("")
+  const [minPrice,       setMinPrice]       = useState("")
+  const [maxPrice,       setMaxPrice]       = useState("")
+  const [currency,       setCurrency]       = useState("USD")
+  const [negotiable,     setNegotiable]     = useState(false)
+  const [availableUnits, setAvailableUnits] = useState("")
 
   // ── Location ─────────────────────────────────────────────────────────────────
   const [country,       setCountry]       = useState("")
@@ -271,6 +272,7 @@ export default function NewListingPage() {
         location_port:     locationPort,
         asking_price:      askingPrice,
         currency,
+        available_units:   availableUnits ? parseInt(availableUnits, 10) : undefined,
         contact: {
           contact_name: resolvedName,
           email:        resolvedEmail,
@@ -492,6 +494,25 @@ export default function NewListingPage() {
             <div className="flex items-center gap-3 pt-1">
               <Switch checked={negotiable} onCheckedChange={setNegotiable} id="negotiable" disabled={submitting} />
               <Label htmlFor="negotiable" className="cursor-pointer font-normal">Price is negotiable</Label>
+            </div>
+
+            <div className="space-y-2 border-t border-border pt-4">
+              <Label htmlFor="available-units">Available Units</Label>
+              <Input
+                id="available-units"
+                type="number"
+                min="1"
+                placeholder="e.g. 50"
+                value={availableUnits}
+                onChange={(e) => setAvailableUnits(e.target.value)}
+                disabled={submitting}
+                className="max-w-xs"
+              />
+              <p className="text-xs text-text-secondary">
+                Leave blank if this is a single unique asset (e.g. one vessel).
+                When stock reaches zero the listing is automatically marked as sold,
+                and restoring this number re-activates it.
+              </p>
             </div>
           </div>
 

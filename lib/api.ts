@@ -55,6 +55,7 @@ export interface ProductListItem {
   location_country: string
   location_port: string | null
   status: string
+  available_units: number | null
   primary_image_url: string | null
   created_at: string
   seller_id: string
@@ -96,6 +97,7 @@ export interface ProductDetail {
   location_port: string | null
   location_details: string | null
   status: string
+  available_units: number | null
   verification_cycle: number
   is_auction: boolean
   images: ProductImage[]
@@ -669,6 +671,7 @@ export const seller = {
     location_port?: string
     asking_price: number
     currency?: string
+    available_units?: number
     contact: { contact_name: string; email: string; phone?: string | null }
   }) => request<ProductDetail>("/marketplace/listings", {
     method: "POST",
