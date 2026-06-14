@@ -8,4 +8,4 @@ export async function register() {
 }
 
 // Required for Next.js 15+ to capture server-side request errors
-export { onRequestError } from "@sentry/nextjs/server";
+export { onRequestError } from "@sentry/nextjs";
