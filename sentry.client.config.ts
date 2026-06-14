@@ -1,5 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
 
+// Temporary diagnostic — remove after confirming Sentry is working
+console.log("[Sentry] DSN status:", process.env.NEXT_PUBLIC_SENTRY_DSN ? "✅ loaded" : "❌ MISSING — check Vercel env vars");
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NODE_ENV,

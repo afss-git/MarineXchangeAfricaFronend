@@ -6,3 +6,6 @@ export async function register() {
     await import("./sentry.edge.config");
   }
 }
+
+// Required for Next.js 15+ to capture server-side request errors
+export { onRequestError } from "@sentry/nextjs/server";
