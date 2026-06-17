@@ -95,9 +95,7 @@ function CategoryTabs({
 }
 
 function ProductCard({ item, index, visible }: { item: ProductListItem; index: number; visible: boolean }) {
-  const location = item.location_port
-    ? `${item.location_port}, ${item.location_country}`
-    : item.location_country
+  const location = item.location_country
 
   return (
     <Link
