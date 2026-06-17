@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { MapPin, ArrowRight, Ship, Building2, Clock, RefreshCw } from "lucide-react"
+import { MapPin, ArrowRight, Ship, Clock, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { marketplace, type ProductListItem, type CategoryResponse } from "@/lib/api"
 
@@ -143,19 +143,11 @@ function ProductCard({ item, index, visible }: { item: ProductListItem; index: n
       {/* Body */}
       <div className="p-4 flex flex-col flex-1">
         <h3
-          className="text-navy font-bold text-base mb-0.5 line-clamp-1 group-hover:text-ocean transition-colors"
+          className="text-navy font-bold text-base mb-2 line-clamp-1 group-hover:text-ocean transition-colors"
           style={{ letterSpacing: "-0.01em" }}
         >
           {item.title}
         </h3>
-
-        {/* Seller byline */}
-        {item.seller_company && (
-          <div className="flex items-center gap-1 text-text-secondary text-xs mt-0.5 mb-2">
-            <Building2 className="w-3 h-3 shrink-0" />
-            <span className="truncate">{item.seller_company}</span>
-          </div>
-        )}
 
         {/* Location */}
         <div className="flex items-center gap-1.5 text-text-secondary text-xs mb-3">
@@ -174,8 +166,10 @@ function ProductCard({ item, index, visible }: { item: ProductListItem; index: n
               {conditionLabel(item.condition)} · {daysAgo(item.created_at)}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-ocean px-3 py-1.5 rounded-full shrink-0 ml-2"
-            style={{ background: "rgba(14,165,233,0.1)" }}>
+          <span
+            className="inline-flex items-center gap-1 text-xs font-semibold text-ocean px-3 py-1.5 rounded-full shrink-0 ml-2"
+            style={{ background: "rgba(14,165,233,0.1)" }}
+          >
             View <ArrowRight className="w-3 h-3" />
           </span>
         </div>
@@ -190,7 +184,6 @@ function SkeletonCard() {
       <div className="h-52 bg-surface shrink-0" />
       <div className="p-4 space-y-3">
         <div className="h-4 bg-surface rounded w-3/4" />
-        <div className="h-3 bg-surface rounded w-2/5" />
         <div className="h-3 bg-surface rounded w-1/2" />
         <div className="h-5 bg-surface rounded w-1/3 mt-2" />
       </div>
@@ -200,17 +193,16 @@ function SkeletonCard() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 12
+
 export function FeaturedListings() {
   const [pool, setPool] = useState<ProductListItem[]>([])
-  const [displayOffset, setDisplayOffset] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
-  const [totalCount, setTotalCount] = useState<number | null>(null)
   const [categories, setCategories] = useState<CategoryResponse[]>([])
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [isTabLoading, setIsTabLoading] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Intersection observer for entrance animation
   useEffect(() => {
@@ -244,44 +236,20 @@ export function FeaturedListings() {
         ...(activeCategory ? { category_id: activeCategory } : {}),
       })
       .then((res) => {
-        setTotalCount(res.total)
         setPool(fisherYates(res.items ?? []))
-        setDisplayOffset(0)
       })
-      .catch(() => {
-        setPool([])
-        setTotalCount(null)
-      })
+      .catch(() => setPool([]))
       .finally(() => {
         setIsLoading(false)
         setIsTabLoading(false)
       })
   }, [activeCategory])
 
-  // Auto-rotate every 12 seconds through the pool
-  useEffect(() => {
-    if (autoRotateRef.current) clearInterval(autoRotateRef.current)
-    if (pool.length <= 6) return
-
-    autoRotateRef.current = setInterval(() => {
-      setDisplayOffset((prev) => {
-        const next = prev + 6
-        return next >= pool.length ? 0 : next
-      })
-    }, 12_000)
-
-    return () => {
-      if (autoRotateRef.current) clearInterval(autoRotateRef.current)
-    }
-  }, [pool])
-
   function handleShuffle() {
-    if (autoRotateRef.current) clearInterval(autoRotateRef.current)
     setPool((prev) => fisherYates(prev))
-    setDisplayOffset(0)
   }
 
-  const displayed = pool.slice(displayOffset, displayOffset + 6)
+  const displayed = pool.slice(0, PAGE_SIZE)
 
   if (!isLoading && pool.length === 0) return null
 
@@ -305,17 +273,9 @@ export function FeaturedListings() {
             >
               Featured Assets
             </h2>
-
-            {/* Live count */}
-            {totalCount !== null && (
-              <p className="text-text-secondary text-sm mb-4 flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span>
-                  <span className="font-semibold text-navy">{totalCount.toLocaleString()}</span>
-                  {" "}verified assets live right now
-                </span>
-              </p>
-            )}
+            <p className="text-text-secondary text-base max-w-lg mb-4">
+              Verified, active listings available right now. Sign in to contact sellers or submit an offer.
+            </p>
 
             {/* Category tabs */}
             {categories.length > 0 && (
@@ -351,14 +311,14 @@ export function FeaturedListings() {
 
         {/* Grid */}
         {isLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 min-h-185">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : (
           <div
-            className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-6 min-h-185 transition-opacity duration-200 ${
+            className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${
               isTabLoading ? "opacity-50 pointer-events-none" : "opacity-100"
             }`}
           >
@@ -371,11 +331,6 @@ export function FeaturedListings() {
         {/* CTA row */}
         {!isLoading && displayed.length > 0 && (
           <div className={`mt-12 text-center ${isVisible ? "animate-fade-up" : "opacity-0"}`}>
-            <p className="text-text-secondary text-sm mb-4">
-              {totalCount !== null
-                ? `${totalCount.toLocaleString()} verified assets available. Browse the full marketplace.`
-                : "Browse the full marketplace below."}
-            </p>
             <Link href={activeCategory ? `/listings?category_id=${activeCategory}` : "/listings"}>
               <Button className="bg-ocean hover:bg-ocean-dark text-white px-8 py-5 text-sm font-semibold transition-all hover:-translate-y-0.5">
                 Browse All{" "}
