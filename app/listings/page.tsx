@@ -1,14 +1,15 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef, Suspense } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import {
   MapPin, Tag, ArrowRight, Ship, Loader2, Search,
-  SlidersHorizontal, X, ExternalLink,
+  SlidersHorizontal, X, ExternalLink, ShieldCheck, Lock, Globe2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Footer } from "@/components/footer"
 import { marketplace, type ProductListItem, type CategoryResponse } from "@/lib/api"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -225,7 +226,6 @@ function flattenCats(cats: CategoryResponse[], depth = 0): { id: string; name: s
 // real inventory) before being asked to sign up. The public catalog API also
 // caps page_size at 50, so this fetches the whole public set in one request.
 const PUBLIC_LIMIT = 50
-const REVEAL_STEP  = 12               // how many cards to unveil per scroll step
 const EMPTY_FILTERS: Filters = { q: "", category_id: "", condition: "", availability_type: "", location_country: "" }
 
 function activeParams(f: Filters) {
@@ -291,55 +291,27 @@ function CatalogContent() {
     ...EMPTY_FILTERS,
     category_id: searchParams.get("category_id") ?? "",
   }))
-  const [pool, setPool]           = useState<ProductListItem[]>([])   // arranged ≤50 public set
-  const [visibleCount, setVisibleCount] = useState(REVEAL_STEP)        // how many of pool we show
-  const [loading, setLoading]     = useState(true)
+  const [pool, setPool]             = useState<ProductListItem[]>([])   // arranged ≤50 public set
+  const [loading, setLoading]       = useState(true)
   const [categories, setCategories] = useState<CategoryResponse[]>([])
   const [showFilters, setShowFilters] = useState(false)
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
-
-  // Latest values for the observer callback, which is created once
-  const stateRef = useRef({ visibleCount, poolLen: 0, loading })
-  stateRef.current = { visibleCount, poolLen: pool.length, loading }
 
   // Load categories once
   useEffect(() => {
     marketplace.getCategories().then(setCategories).catch(() => {})
   }, [])
 
-  // Filters changed → fetch the public preview (≤50), diversify, reset reveal
+  // Filters changed → fetch the public preview (≤50) and diversify
   useEffect(() => {
     setLoading(true)
     const timer = setTimeout(() => {
       marketplace.browse({ page: 1, page_size: PUBLIC_LIMIT, ...activeParams(filters) })
-        .then(res => {
-          setPool(diversify(res.items ?? []))
-          setVisibleCount(REVEAL_STEP)
-        })
+        .then(res => setPool(diversify(res.items ?? [])))
         .catch(() => setPool([]))
         .finally(() => setLoading(false))
     }, 350)
     return () => clearTimeout(timer)
   }, [filters])
-
-  // Reveal the next slice — called by the scroll sentinel (pure client-side)
-  const revealMore = useCallback(() => {
-    const s = stateRef.current
-    if (s.loading || s.visibleCount >= s.poolLen) return
-    setVisibleCount(v => Math.min(v + REVEAL_STEP, s.poolLen))
-  }, [])
-
-  // Observe the sentinel; reveal more as it nears the viewport
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting) revealMore() },
-      { rootMargin: "600px" },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [revealMore])
 
   function handleFilterChange(k: keyof Filters, v: string) {
     setFilters(prev => ({ ...prev, [k]: v }))
@@ -348,9 +320,6 @@ function CatalogContent() {
   function handleReset() {
     setFilters(EMPTY_FILTERS)
   }
-
-  const visible    = pool.slice(0, visibleCount)
-  const reachedEnd = !loading && pool.length > 0 && visibleCount >= pool.length
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
@@ -376,21 +345,34 @@ function CatalogContent() {
         </div>
       </nav>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page header */}
-        <div className="flex items-center justify-between mb-6 gap-4">
-          <div>
-            <h1 className="text-2xl font-extrabold text-navy leading-tight" style={{ letterSpacing: "-0.02em" }}>
-              Marine Marketplace
-            </h1>
-            <p className="text-text-secondary text-sm mt-0.5">
-              Verified vessels, equipment &amp; maritime assets
-            </p>
+      {/* Hero band */}
+      <header className="relative overflow-hidden bg-gradient-to-br from-navy via-navy to-navy-dark">
+        <div className="absolute inset-0 opacity-[0.12] bg-[radial-gradient(circle_at_top_right,white,transparent_55%)]" aria-hidden />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <p className="text-ocean text-xs font-semibold tracking-[0.18em] uppercase mb-3">
+            Marine Marketplace
+          </p>
+          <h1 className="text-white font-extrabold leading-tight mb-3" style={{ fontSize: "clamp(28px, 4.5vw, 44px)", letterSpacing: "-0.03em" }}>
+            Verified vessels, equipment &amp;<br className="hidden sm:block" /> maritime assets across Africa
+          </h1>
+          <p className="text-white/70 text-sm sm:text-base max-w-xl mb-6">
+            Browse a curated preview of live listings. Create a free account to unlock the full marketplace, contact sellers, and submit offers.
+          </p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-white/60 text-xs sm:text-sm">
+            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-ocean" /> Verified sellers</span>
+            <span className="flex items-center gap-1.5"><Lock className="w-4 h-4 text-ocean" /> Secure escrow</span>
+            <span className="flex items-center gap-1.5"><Globe2 className="w-4 h-4 text-ocean" /> Pan-African reach</span>
           </div>
-          {/* Mobile filter toggle */}
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        {/* Mobile filter toggle */}
+        <div className="flex items-center justify-between mb-5 lg:hidden">
+          <p className="text-sm font-semibold text-navy">Browse listings</p>
           <button
             onClick={() => setShowFilters(v => !v)}
-            className="lg:hidden flex items-center gap-1.5 text-sm font-semibold text-text-primary border border-border rounded-xl px-3 py-2 bg-white hover:border-ocean transition-colors"
+            className="flex items-center gap-1.5 text-sm font-semibold text-text-primary border border-border rounded-xl px-3 py-2 bg-white hover:border-ocean transition-colors"
           >
             <SlidersHorizontal className="w-4 h-4" />
             Filters
@@ -398,8 +380,8 @@ function CatalogContent() {
         </div>
 
         <div className="flex gap-7 items-start">
-          {/* ── Sidebar filters (desktop always visible, mobile toggleable) ── */}
-          <aside className={`w-64 shrink-0 ${showFilters ? "block" : "hidden"} lg:block`}>
+          {/* ── Sidebar filters (desktop sticky, mobile toggleable) ── */}
+          <aside className={`w-64 shrink-0 ${showFilters ? "block" : "hidden"} lg:block lg:sticky lg:top-20`}>
             <FilterBar
               filters={filters}
               categories={categories}
@@ -413,11 +395,11 @@ function CatalogContent() {
           <div className="flex-1 min-w-0">
             {loading ? (
               <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {Array.from({ length: REVEAL_STEP }).map((_, i) => <SkeletonCard key={i} />)}
+                {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
               </div>
             ) : pool.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="w-16 h-16 rounded-full bg-white border border-border flex items-center justify-center mb-4">
+              <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-2xl border border-border">
+                <div className="w-16 h-16 rounded-full bg-surface border border-border flex items-center justify-center mb-4">
                   <Ship className="w-8 h-8 text-ocean/30" />
                 </div>
                 <p className="text-navy font-bold mb-1">No listings found</p>
@@ -429,46 +411,43 @@ function CatalogContent() {
             ) : (
               <>
                 <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {visible.map(item => <ProductCard key={item.id} item={item} />)}
+                  {pool.map(item => <ProductCard key={item.id} item={item} />)}
                 </div>
 
-                {/* Infinite-scroll sentinel — reveals more of the preview as it nears the viewport */}
-                {!reachedEnd && <div ref={sentinelRef} className="h-px" aria-hidden />}
-
                 {/* End-of-preview sign-up gate */}
-                {reachedEnd && (
-                  <div className="mt-10 relative overflow-hidden rounded-2xl border border-ocean/30 bg-gradient-to-br from-navy to-navy-dark p-8 text-center">
-                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,white,transparent_60%)]" aria-hidden />
-                    <div className="relative">
-                      <p className="text-ocean text-xs font-semibold tracking-[0.15em] uppercase mb-3">
-                        You&apos;re viewing a preview
-                      </p>
-                      <h3 className="text-white font-extrabold text-xl sm:text-2xl mb-2" style={{ letterSpacing: "-0.02em" }}>
-                        Sign up to view the full marketplace
-                      </h3>
-                      <p className="text-white/70 text-sm mb-6 max-w-md mx-auto">
-                        Create a free account to browse every listing, contact sellers, and submit offers. It takes less than 2 minutes.
-                      </p>
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                        <Link href="/signup/buyer">
-                          <Button className="bg-ocean text-white hover:bg-ocean-dark gap-2">
-                            Sign Up Free to View All Listings <ArrowRight className="w-4 h-4" />
-                          </Button>
-                        </Link>
-                        <Link href="/login">
-                          <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
-                            Log In
-                          </Button>
-                        </Link>
-                      </div>
+                <div className="mt-10 relative overflow-hidden rounded-2xl border border-ocean/30 bg-gradient-to-br from-navy to-navy-dark p-8 sm:p-10 text-center">
+                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,white,transparent_60%)]" aria-hidden />
+                  <div className="relative">
+                    <p className="text-ocean text-xs font-semibold tracking-[0.15em] uppercase mb-3">
+                      You&apos;re viewing a preview
+                    </p>
+                    <h3 className="text-white font-extrabold text-xl sm:text-2xl mb-2" style={{ letterSpacing: "-0.02em" }}>
+                      Sign up to view the full marketplace
+                    </h3>
+                    <p className="text-white/70 text-sm mb-6 max-w-md mx-auto">
+                      Create a free account to browse every listing, contact sellers, and submit offers. It takes less than 2 minutes.
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <Link href="/signup/buyer">
+                        <Button className="bg-ocean text-white hover:bg-ocean-dark gap-2">
+                          Sign Up Free to View All Listings <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                      <Link href="/login">
+                        <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
+                          Log In
+                        </Button>
+                      </Link>
                     </div>
                   </div>
-                )}
+                </div>
               </>
             )}
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   )
 }
