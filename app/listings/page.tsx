@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback, Suspense } from "react"
+import { useEffect, useState, useCallback, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import {
   MapPin, Tag, ArrowRight, Ship, Loader2, Search,
-  SlidersHorizontal, X, ChevronLeft, ChevronRight as ChevronRightIcon,
-  ExternalLink,
+  SlidersHorizontal, X, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { marketplace, type ProductListItem, type CategoryResponse } from "@/lib/api"
@@ -226,6 +225,16 @@ function flattenCats(cats: CategoryResponse[], depth = 0): { id: string; name: s
 const PAGE_SIZE = 12
 const EMPTY_FILTERS: Filters = { q: "", category_id: "", condition: "", availability_type: "", location_country: "" }
 
+function activeParams(f: Filters) {
+  return {
+    ...(f.q                 ? { q: f.q }                                 : {}),
+    ...(f.category_id       ? { category_id: f.category_id }             : {}),
+    ...(f.condition         ? { condition: f.condition }                 : {}),
+    ...(f.availability_type ? { availability_type: f.availability_type } : {}),
+    ...(f.location_country  ? { location_country: f.location_country }   : {}),
+  }
+}
+
 function CatalogContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -236,27 +245,26 @@ function CatalogContent() {
   const [page, setPage]           = useState(1)
   const [pages, setPages]         = useState(1)
   const [loading, setLoading]     = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [categories, setCategories] = useState<CategoryResponse[]>([])
   const [showFilters, setShowFilters] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  // Latest values for the observer callback, which is created once
+  const stateRef = useRef({ page, pages, loading, loadingMore, filters })
+  stateRef.current = { page, pages, loading, loadingMore, filters }
 
   // Load categories once
   useEffect(() => {
     marketplace.getCategories().then(setCategories).catch(() => {})
   }, [])
 
-  // Debounced fetch
+  // Filters changed → reset to page 1 and REPLACE results (debounced for the search box)
   useEffect(() => {
     setLoading(true)
     const timer = setTimeout(() => {
-      marketplace.browse({
-        page,
-        page_size: PAGE_SIZE,
-        ...(filters.q              ? { q: filters.q }                           : {}),
-        ...(filters.category_id    ? { category_id: filters.category_id }       : {}),
-        ...(filters.condition      ? { condition: filters.condition }            : {}),
-        ...(filters.availability_type ? { availability_type: filters.availability_type } : {}),
-        ...(filters.location_country  ? { location_country: filters.location_country }   : {}),
-      })
+      setPage(1)
+      marketplace.browse({ page: 1, page_size: PAGE_SIZE, ...activeParams(filters) })
         .then(res => {
           setProducts(res.items ?? [])
           setTotal(res.total ?? 0)
@@ -266,16 +274,43 @@ function CatalogContent() {
         .finally(() => setLoading(false))
     }, 350)
     return () => clearTimeout(timer)
-  }, [filters, page])
+  }, [filters])
+
+  // Append the next page — called by the scroll sentinel
+  const loadMore = useCallback(() => {
+    const s = stateRef.current
+    if (s.loading || s.loadingMore || s.page >= s.pages) return
+    const next = s.page + 1
+    setPage(next)
+    setLoadingMore(true)
+    marketplace.browse({ page: next, page_size: PAGE_SIZE, ...activeParams(s.filters) })
+      .then(res => {
+        setProducts(prev => [...prev, ...(res.items ?? [])])
+        setTotal(res.total ?? 0)
+        setPages(res.pages ?? 1)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false))
+  }, [])
+
+  // Observe the sentinel; load more as it nears the viewport
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadMore() },
+      { rootMargin: "600px" },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [loadMore])
 
   function handleFilterChange(k: keyof Filters, v: string) {
     setFilters(prev => ({ ...prev, [k]: v }))
-    setPage(1)
   }
 
   function handleReset() {
     setFilters(EMPTY_FILTERS)
-    setPage(1)
   }
 
   return (
@@ -359,27 +394,21 @@ function CatalogContent() {
                   {products.map(item => <ProductCard key={item.id} item={item} />)}
                 </div>
 
-                {/* Pagination */}
-                {pages > 1 && (
-                  <div className="flex items-center justify-center gap-3 mt-10">
-                    <button
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="w-9 h-9 rounded-xl border border-border bg-white flex items-center justify-center hover:border-ocean disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <p className="text-sm text-text-secondary">
-                      Page <span className="font-bold text-text-primary">{page}</span> of <span className="font-bold text-text-primary">{pages}</span>
-                    </p>
-                    <button
-                      onClick={() => setPage(p => Math.min(pages, p + 1))}
-                      disabled={page === pages}
-                      className="w-9 h-9 rounded-xl border border-border bg-white flex items-center justify-center hover:border-ocean disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronRightIcon className="w-4 h-4" />
-                    </button>
+                {/* Loading-more skeletons */}
+                {loadingMore && (
+                  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-5">
+                    {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
                   </div>
+                )}
+
+                {/* Infinite-scroll sentinel — observed to auto-load the next page */}
+                <div ref={sentinelRef} className="h-px" aria-hidden />
+
+                {/* End of results */}
+                {page >= pages && !loadingMore && (
+                  <p className="text-center text-text-secondary text-xs mt-8">
+                    End of results · {total.toLocaleString()} listing{total !== 1 ? "s" : ""}
+                  </p>
                 )}
 
                 {/* Soft CTA at bottom */}
