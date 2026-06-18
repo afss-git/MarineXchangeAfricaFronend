@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import {
@@ -109,13 +109,12 @@ interface Filters {
 }
 
 function FilterBar({
-  filters, categories, onChange, onReset, total, loading,
+  filters, categories, onChange, onReset, loading,
 }: {
   filters: Filters
   categories: CategoryResponse[]
   onChange: (k: keyof Filters, v: string) => void
   onReset: () => void
-  total: number
   loading: boolean
 }) {
   const hasActive = Object.values(filters).some(v => v !== "")
@@ -199,7 +198,7 @@ function FilterBar({
       {/* Results count + reset */}
       <div className="flex items-center justify-between pt-1 border-t border-border">
         <p className="text-xs text-text-secondary">
-          {loading ? "Loading…" : `${total.toLocaleString()} listing${total !== 1 ? "s" : ""}`}
+          {loading ? "Loading…" : "Verified listings"}
         </p>
         {hasActive && (
           <button onClick={onReset} className="text-xs text-danger font-semibold hover:underline flex items-center gap-1">
@@ -222,7 +221,11 @@ function flattenCats(cats: CategoryResponse[], depth = 0): { id: string; name: s
 
 // ── Main catalog page ─────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 12
+// Logged-out visitors see at most this many assets (a curated preview, not the
+// real inventory) before being asked to sign up. The public catalog API also
+// caps page_size at 50, so this fetches the whole public set in one request.
+const PUBLIC_LIMIT = 50
+const REVEAL_STEP  = 12               // how many cards to unveil per scroll step
 const EMPTY_FILTERS: Filters = { q: "", category_id: "", condition: "", availability_type: "", location_country: "" }
 
 function activeParams(f: Filters) {
@@ -235,75 +238,108 @@ function activeParams(f: Filters) {
   }
 }
 
+// Tokens too generic to identify an asset — ignored when comparing names.
+const STOP_TOKENS = new Set([
+  "THE", "FOR", "AND", "WITH", "NEW", "USED", "LTD", "INC", "SALE", "HIRE",
+  "LEASE", "MARINE", "VESSEL", "BOAT", "SHIP", "UNIT", "UNITS", "MODEL",
+  "TYPE", "SET", "PCS",
+])
+
+// The distinguishing word in a title — the longest significant token.
+// "CASTROL GTX 20W-50" → "CASTROL". Used to keep look-alikes apart.
+function nameKey(title: string): string {
+  const tokens = (title || "")
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(t => t.length >= 3 && !STOP_TOKENS.has(t))
+  if (tokens.length === 0) return (title || "").toUpperCase().trim()
+  return tokens.sort((a, b) => b.length - a.length)[0]
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+// Reorder so assets sharing a name-key (e.g. two CASTROL listings) or the same
+// category never land within `window` positions of each other. Randomised base
+// order, then a greedy spread that relaxes its constraints only when forced.
+function diversify(items: ProductListItem[], window = 3): ProductListItem[] {
+  const remaining = shuffle(items).map(it => ({ it, key: nameKey(it.title) }))
+  const out: { it: ProductListItem; key: string }[] = []
+  while (remaining.length) {
+    const recent     = out.slice(-window)
+    const recentKeys = new Set(recent.map(r => r.key))
+    const recentCats = new Set(recent.map(r => r.it.category_id))
+    let idx = remaining.findIndex(r => !recentKeys.has(r.key) && !recentCats.has(r.it.category_id))
+    if (idx === -1) idx = remaining.findIndex(r => !recentKeys.has(r.key))  // relax category clash
+    if (idx === -1) idx = 0                                                 // unavoidable — take next
+    out.push(remaining.splice(idx, 1)[0])
+  }
+  return out.map(r => r.it)
+}
+
 function CatalogContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
 
-  const [filters, setFilters]     = useState<Filters>(EMPTY_FILTERS)
-  const [products, setProducts]   = useState<ProductListItem[]>([])
-  const [total, setTotal]         = useState(0)
-  const [page, setPage]           = useState(1)
-  const [pages, setPages]         = useState(1)
+  // Honour ?category_id= deep-links from the landing-page category tabs.
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...EMPTY_FILTERS,
+    category_id: searchParams.get("category_id") ?? "",
+  }))
+  const [pool, setPool]           = useState<ProductListItem[]>([])   // arranged ≤50 public set
+  const [visibleCount, setVisibleCount] = useState(REVEAL_STEP)        // how many of pool we show
   const [loading, setLoading]     = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [categories, setCategories] = useState<CategoryResponse[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
 
   // Latest values for the observer callback, which is created once
-  const stateRef = useRef({ page, pages, loading, loadingMore, filters })
-  stateRef.current = { page, pages, loading, loadingMore, filters }
+  const stateRef = useRef({ visibleCount, poolLen: 0, loading })
+  stateRef.current = { visibleCount, poolLen: pool.length, loading }
 
   // Load categories once
   useEffect(() => {
     marketplace.getCategories().then(setCategories).catch(() => {})
   }, [])
 
-  // Filters changed → reset to page 1 and REPLACE results (debounced for the search box)
+  // Filters changed → fetch the public preview (≤50), diversify, reset reveal
   useEffect(() => {
     setLoading(true)
     const timer = setTimeout(() => {
-      setPage(1)
-      marketplace.browse({ page: 1, page_size: PAGE_SIZE, ...activeParams(filters) })
+      marketplace.browse({ page: 1, page_size: PUBLIC_LIMIT, ...activeParams(filters) })
         .then(res => {
-          setProducts(res.items ?? [])
-          setTotal(res.total ?? 0)
-          setPages(res.pages ?? 1)
+          setPool(diversify(res.items ?? []))
+          setVisibleCount(REVEAL_STEP)
         })
-        .catch(() => setProducts([]))
+        .catch(() => setPool([]))
         .finally(() => setLoading(false))
     }, 350)
     return () => clearTimeout(timer)
   }, [filters])
 
-  // Append the next page — called by the scroll sentinel
-  const loadMore = useCallback(() => {
+  // Reveal the next slice — called by the scroll sentinel (pure client-side)
+  const revealMore = useCallback(() => {
     const s = stateRef.current
-    if (s.loading || s.loadingMore || s.page >= s.pages) return
-    const next = s.page + 1
-    setPage(next)
-    setLoadingMore(true)
-    marketplace.browse({ page: next, page_size: PAGE_SIZE, ...activeParams(s.filters) })
-      .then(res => {
-        setProducts(prev => [...prev, ...(res.items ?? [])])
-        setTotal(res.total ?? 0)
-        setPages(res.pages ?? 1)
-      })
-      .catch(() => {})
-      .finally(() => setLoadingMore(false))
+    if (s.loading || s.visibleCount >= s.poolLen) return
+    setVisibleCount(v => Math.min(v + REVEAL_STEP, s.poolLen))
   }, [])
 
-  // Observe the sentinel; load more as it nears the viewport
+  // Observe the sentinel; reveal more as it nears the viewport
   useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
     const obs = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting) loadMore() },
+      entries => { if (entries[0].isIntersecting) revealMore() },
       { rootMargin: "600px" },
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [loadMore])
+  }, [revealMore])
 
   function handleFilterChange(k: keyof Filters, v: string) {
     setFilters(prev => ({ ...prev, [k]: v }))
@@ -312,6 +348,9 @@ function CatalogContent() {
   function handleReset() {
     setFilters(EMPTY_FILTERS)
   }
+
+  const visible    = pool.slice(0, visibleCount)
+  const reachedEnd = !loading && pool.length > 0 && visibleCount >= pool.length
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
@@ -366,7 +405,6 @@ function CatalogContent() {
               categories={categories}
               onChange={handleFilterChange}
               onReset={handleReset}
-              total={total}
               loading={loading}
             />
           </aside>
@@ -375,9 +413,9 @@ function CatalogContent() {
           <div className="flex-1 min-w-0">
             {loading ? (
               <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)}
+                {Array.from({ length: REVEAL_STEP }).map((_, i) => <SkeletonCard key={i} />)}
               </div>
-            ) : products.length === 0 ? (
+            ) : pool.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="w-16 h-16 rounded-full bg-white border border-border flex items-center justify-center mb-4">
                   <Ship className="w-8 h-8 text-ocean/30" />
@@ -391,38 +429,41 @@ function CatalogContent() {
             ) : (
               <>
                 <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {products.map(item => <ProductCard key={item.id} item={item} />)}
+                  {visible.map(item => <ProductCard key={item.id} item={item} />)}
                 </div>
 
-                {/* Loading-more skeletons */}
-                {loadingMore && (
-                  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-5">
-                    {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+                {/* Infinite-scroll sentinel — reveals more of the preview as it nears the viewport */}
+                {!reachedEnd && <div ref={sentinelRef} className="h-px" aria-hidden />}
+
+                {/* End-of-preview sign-up gate */}
+                {reachedEnd && (
+                  <div className="mt-10 relative overflow-hidden rounded-2xl border border-ocean/30 bg-gradient-to-br from-navy to-navy-dark p-8 text-center">
+                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,white,transparent_60%)]" aria-hidden />
+                    <div className="relative">
+                      <p className="text-ocean text-xs font-semibold tracking-[0.15em] uppercase mb-3">
+                        You&apos;re viewing a preview
+                      </p>
+                      <h3 className="text-white font-extrabold text-xl sm:text-2xl mb-2" style={{ letterSpacing: "-0.02em" }}>
+                        Sign up to view the full marketplace
+                      </h3>
+                      <p className="text-white/70 text-sm mb-6 max-w-md mx-auto">
+                        Create a free account to browse every listing, contact sellers, and submit offers. It takes less than 2 minutes.
+                      </p>
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <Link href="/signup/buyer">
+                          <Button className="bg-ocean text-white hover:bg-ocean-dark gap-2">
+                            Sign Up Free to View All Listings <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                        <Link href="/login">
+                          <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
+                            Log In
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 )}
-
-                {/* Infinite-scroll sentinel — observed to auto-load the next page */}
-                <div ref={sentinelRef} className="h-px" aria-hidden />
-
-                {/* End of results */}
-                {page >= pages && !loadingMore && (
-                  <p className="text-center text-text-secondary text-xs mt-8">
-                    End of results · {total.toLocaleString()} listing{total !== 1 ? "s" : ""}
-                  </p>
-                )}
-
-                {/* Soft CTA at bottom */}
-                <div className="mt-10 bg-white rounded-2xl border border-border p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div>
-                    <p className="font-bold text-navy text-sm">Want to contact sellers or submit an offer?</p>
-                    <p className="text-text-secondary text-xs mt-0.5">Create a free account — it takes less than 2 minutes.</p>
-                  </div>
-                  <Link href="/signup/buyer" className="shrink-0">
-                    <Button className="bg-ocean text-white hover:bg-ocean-dark gap-2 text-sm">
-                      Sign Up Free <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </Link>
-                </div>
               </>
             )}
           </div>
