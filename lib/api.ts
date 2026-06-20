@@ -50,7 +50,7 @@ export interface ProductListItem {
   category_name: string | null
   availability_type: string
   condition: string
-  asking_price: string
+  asking_price: string | null
   currency: string
   location_country: string
   location_port: string | null
@@ -91,7 +91,7 @@ export interface ProductDetail {
   category_name: string | null
   availability_type: string
   condition: string
-  asking_price: string
+  asking_price: string | null
   currency: string
   location_country: string
   location_port: string | null
@@ -669,7 +669,7 @@ export const seller = {
     condition: string
     location_country: string
     location_port?: string
-    asking_price: number
+    asking_price?: number          // omit for "price on request"
     currency?: string
     available_units?: number
     contact: { contact_name: string; email: string; phone?: string | null }
@@ -2444,7 +2444,7 @@ export const authBuyer = {
 export interface AdminProductListItem {
   id: string; title: string; status: string
   seller_id: string; seller_company: string | null; seller_email: string | null
-  category_name: string | null; asking_price: string; currency: string
+  category_name: string | null; asking_price: string | null; currency: string
   location_country: string; condition: string; availability_type: string
   primary_image_url: string | null; verification_agent: string | null
   submitted_at: string | null; created_at: string; updated_at: string
@@ -2495,7 +2495,7 @@ export interface ProductSnapshot {
   category_id: string | null
   availability_type: string
   condition: string
-  asking_price: number
+  asking_price: number | null
   currency: string
   location_country: string
   location_port: string | null

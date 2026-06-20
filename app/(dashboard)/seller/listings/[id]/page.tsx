@@ -453,7 +453,7 @@ export default function EditListingPage() {
       setTitle(data.title)
       setDescription(data.description ?? "")
       setCondition(data.condition ?? "")
-      setAskingPrice(data.asking_price)
+      setAskingPrice(data.asking_price ?? "")   // "" = price on request
       setCurrency(data.currency ?? "USD")
       setLocationCountry(data.location_country ?? "")
       setLocationPort(data.location_port ?? "")
@@ -502,7 +502,7 @@ export default function EditListingPage() {
         title,
         description,
         condition,
-        asking_price: Number(askingPrice),
+        ...(askingPrice ? { asking_price: Number(askingPrice) } : {}),
         currency,
         location_country: locationCountry,
         location_port: locationPort,

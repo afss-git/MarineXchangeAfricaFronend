@@ -338,7 +338,9 @@ export default function MarketplacePage() {
                       <span>{listing.location_country}</span>
                     </div>
                     <p className="font-semibold text-navy mt-2">
-                      ${Number(listing.asking_price).toLocaleString()} {listing.currency}
+                      {listing.asking_price == null
+                        ? "Price on Request"
+                        : `$${Number(listing.asking_price).toLocaleString()} ${listing.currency}`}
                     </p>
                     <p className="text-xs text-text-secondary mt-1 capitalize">
                       {listing.condition} · {listing.availability_type.replace(/_/g, " ")}

@@ -236,9 +236,12 @@ export default function NewListingPage() {
     setError(null)
 
     try {
+      // "Price on Request" → no price (undefined, omitted from the request).
+      // "Price Range" stores the lower bound as the asking price; the range text
+      // is carried in the description.
       const askingPrice =
-        priceType === "Fixed Price"  ? Number(fixedPrice) || 0 :
-        priceType === "Price Range"  ? Number(minPrice)   || 0 : 0
+        priceType === "Fixed Price"  ? Number(fixedPrice) || undefined :
+        priceType === "Price Range"  ? Number(minPrice)   || undefined : undefined
 
       // Trim location to backend's max_length=200
       const locationParts = [streetAddress, city, state].filter(Boolean)

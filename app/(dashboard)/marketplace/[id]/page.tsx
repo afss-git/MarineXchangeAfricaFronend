@@ -92,7 +92,7 @@ export default function AssetDetailPage() {
     marketplaceApi.getProduct(id)
       .then((data) => {
         setProduct(data)
-        setOfferPrice(data.asking_price)
+        setOfferPrice(data.asking_price ?? "")
       })
       .catch((e) => setError(e?.message ?? "Failed to load listing."))
       .finally(() => setIsLoading(false))
@@ -323,7 +323,9 @@ export default function AssetDetailPage() {
             {/* Price */}
             <div>
               <p className="text-2xl font-bold text-navy">
-                ${Number(product.asking_price).toLocaleString()} {product.currency}
+                {product.asking_price == null
+                  ? "Price on Request"
+                  : `$${Number(product.asking_price).toLocaleString()} ${product.currency}`}
               </p>
               <p className="text-sm text-text-secondary mt-1 capitalize">
                 {product.availability_type.replace(/_/g, " ")}
@@ -475,7 +477,9 @@ export default function AssetDetailPage() {
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm font-medium text-text-primary line-clamp-1">{product.title}</p>
               <p className="text-sm text-text-secondary mt-0.5">
-                Listed at ${Number(product.asking_price).toLocaleString()} {product.currency}
+                {product.asking_price == null
+                  ? "Price on request"
+                  : `Listed at $${Number(product.asking_price).toLocaleString()} ${product.currency}`}
               </p>
             </div>
 
@@ -531,7 +535,7 @@ export default function AssetDetailPage() {
                     className="pl-7"
                     value={offerPrice}
                     onChange={(e) => setOfferPrice(e.target.value)}
-                    placeholder={product.asking_price}
+                    placeholder={product.asking_price ?? "Enter your offer"}
                   />
                 </div>
                 {quantity > 1 && (

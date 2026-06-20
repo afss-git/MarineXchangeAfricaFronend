@@ -919,7 +919,7 @@ function ListingDetailPanel({ listing, onActionDone }: { listing: Listing; onAct
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {[
                   { label: "Title",        orig: snapshot.title,           live: product.title },
-                  { label: "Price",        orig: `${parseFloat(String(snapshot.asking_price)).toLocaleString()} ${snapshot.currency}`, live: `${parseFloat(String(product.asking_price)).toLocaleString()} ${product.currency}` },
+                  { label: "Price",        orig: snapshot.asking_price == null ? "On request" : `${parseFloat(String(snapshot.asking_price)).toLocaleString()} ${snapshot.currency}`, live: product.asking_price == null ? "On request" : `${parseFloat(String(product.asking_price)).toLocaleString()} ${product.currency}` },
                   { label: "Condition",    orig: snapshot.condition,       live: product.condition },
                   { label: "Availability", orig: snapshot.availability_type.replace(/_/g," "), live: product.availability_type.replace(/_/g," ") },
                   { label: "Country",      orig: snapshot.location_country, live: product.location_country },
@@ -987,7 +987,7 @@ function ListingDetailPanel({ listing, onActionDone }: { listing: Listing; onAct
         <SectionHeader icon={Package} title="Product Details" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[
-            { label: "Asking Price",      value: fmtMoney(product.asking_price, product.currency) },
+            { label: "Asking Price",      value: product.asking_price == null ? "Price on request" : fmtMoney(product.asking_price, product.currency) },
             { label: "Condition",         value: product.condition ? product.condition.charAt(0).toUpperCase() + product.condition.slice(1) : "—" },
             { label: "Availability",      value: product.availability_type?.replace(/_/g, " ") ?? "—" },
             { label: "Location",          value: [product.location_country, product.location_port].filter(Boolean).join(", ") || "—" },

@@ -421,7 +421,7 @@ function ProductPanel({ item, onActioned }: {
           ["Seller", detail.seller_company ?? "—"],
           ["Seller Email", detail.seller_email ?? "—"],
           ["Seller Phone", detail.seller_phone ?? "—"],
-          ["Asking Price", `${parseFloat(detail.asking_price).toLocaleString()} ${detail.currency}`],
+          ["Asking Price", detail.asking_price == null ? "Price on request" : `${detail.asking_price.toLocaleString()} ${detail.currency}`],
           ["Condition", detail.condition.replace(/_/g, " ")],
           ["Availability", detail.availability_type.replace(/_/g, " ")],
           ["Location", `${detail.location_country}${detail.location_port ? `, ${detail.location_port}` : ""}`],
@@ -858,7 +858,7 @@ export default function AdminMarketplacePage() {
                     <p className="text-sm font-semibold text-text-primary truncate">{item.title}</p>
                     <p className="text-xs text-text-secondary truncate">
                       {item.seller_company ?? "—"} · {item.location_country}
-                      {" "}· {parseFloat(item.asking_price).toLocaleString()} {item.currency}
+                      {" "}· {item.asking_price == null ? "On request" : `${parseFloat(item.asking_price).toLocaleString()} ${item.currency}`}
                       {" "}· {fmtDate(item.created_at)}
                     </p>
                     {item.verification_agent && (

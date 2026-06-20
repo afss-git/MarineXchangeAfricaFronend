@@ -337,7 +337,9 @@ export default function DashboardPage() {
                         </Badge>
                       )}
                       <span className="text-sm text-text-secondary">
-                        ${Number(item.asking_price).toLocaleString()} {item.currency}
+                        {item.asking_price == null
+                          ? "Price on Request"
+                          : `$${Number(item.asking_price).toLocaleString()} ${item.currency}`}
                       </span>
                     </div>
                   </div>

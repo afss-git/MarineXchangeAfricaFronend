@@ -237,7 +237,9 @@ export default function SellerListingsPage() {
                     </Link>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-text-secondary">
-                    ${Number(l.asking_price).toLocaleString()} {l.currency}
+                    {l.asking_price == null
+                      ? "On request"
+                      : `$${Number(l.asking_price).toLocaleString()} ${l.currency}`}
                   </TableCell>
                   <TableCell>
                     <Badge className={cn("text-xs border capitalize", statusStyle[l.status] ?? "bg-gray-100 text-text-secondary")}>

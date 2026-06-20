@@ -13,9 +13,10 @@ import { marketplace, type ProductDetail } from "@/lib/api"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatPrice(price: string, currency: string) {
+function formatPrice(price: string | null, currency: string) {
+  if (price == null) return "Price on Request"
   const num = parseFloat(price)
-  if (isNaN(num)) return `${currency} ${price}`
+  if (isNaN(num)) return "Price on Request"
   if (num >= 1_000_000) return `${currency} ${(num / 1_000_000).toFixed(2)}M`
   if (num >= 1_000) return `${currency} ${(num / 1_000).toFixed(0)}K`
   return `${currency} ${num.toLocaleString()}`

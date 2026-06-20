@@ -50,11 +50,13 @@ export function Hero() {
         const res = await marketplace.browse({ page: 1, page_size: 5, q: query.trim() })
         const listSuggs: Suggestion[] = (res.items ?? []).map(item => ({
           type: "listing", id: item.id, label: item.title,
-          sub: `${item.currency} ${parseFloat(item.asking_price) >= 1_000_000
-            ? (parseFloat(item.asking_price) / 1_000_000).toFixed(1) + "M"
-            : parseFloat(item.asking_price) >= 1_000
-            ? (parseFloat(item.asking_price) / 1_000).toFixed(0) + "K"
-            : parseFloat(item.asking_price).toLocaleString()} · ${item.location_country}`,
+          sub: `${item.asking_price == null
+            ? "Price on Request"
+            : `${item.currency} ${parseFloat(item.asking_price) >= 1_000_000
+              ? (parseFloat(item.asking_price) / 1_000_000).toFixed(1) + "M"
+              : parseFloat(item.asking_price) >= 1_000
+              ? (parseFloat(item.asking_price) / 1_000).toFixed(0) + "K"
+              : parseFloat(item.asking_price).toLocaleString()}`} · ${item.location_country}`,
           href: `/listings/${item.id}`,
         }))
         setSuggestions([...catSuggs, ...listSuggs])
