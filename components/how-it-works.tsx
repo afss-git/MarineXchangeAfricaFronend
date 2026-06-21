@@ -61,7 +61,7 @@ export function HowItWorks() {
             <span className="text-balance">How Harbours<span className="text-ocean">360</span> Works</span>
           </h2>
           <p className="text-text-secondary text-base max-w-xl mx-auto">
-            A streamlined process to buy or sell high-value maritime and industrial assets.
+            A streamlined process to buy or sell high-value offshore assets and equipment.
           </p>
         </div>
 

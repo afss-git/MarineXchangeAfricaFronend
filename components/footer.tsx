@@ -48,7 +48,7 @@ export function Footer() {
             </Link>
 
             <p className="text-white/40 text-sm leading-relaxed max-w-60 mb-6">
-              Africa&apos;s trusted B2B marketplace for maritime and industrial asset transactions.
+              Africa&apos;s trusted B2B marketplace for offshore assets and equipment.
             </p>
 
             {/* Social links */}

@@ -69,7 +69,7 @@ export function CTASection() {
               </h2>
 
               <p className="text-white/50 text-base max-w-lg leading-relaxed mb-8">
-                Join 500+ companies already transacting on Africa&apos;s most trusted maritime and industrial marketplace.
+                Join 500+ companies already transacting on Africa&apos;s most trusted marketplace for offshore assets and equipment.
               </p>
 
               {/* Highlight list */}

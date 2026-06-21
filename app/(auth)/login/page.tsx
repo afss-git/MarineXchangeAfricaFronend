@@ -99,7 +99,7 @@ function LoginForm() {
     <>
       <AuthLeftPanel
         heading="Trade with Confidence"
-        description="Africa's most trusted B2B marketplace for maritime and industrial assets. Verified companies, secure transactions, complete transparency."
+        description="Africa's most trusted B2B marketplace for offshore assets and equipment. Verified companies, secure transactions, complete transparency."
         benefits={[
           "KYC-verified buyers and sellers",
           "Escrow-protected payments",

@@ -41,7 +41,7 @@ const STEPS: Step[] = [
     Icon:         Anchor,
     title:        (name) => name ? `Welcome, ${name.split(" ")[0]}!` : "Welcome to Harbours360",
     subtitle:     "Africa's B2B maritime marketplace",
-    body:         "You now have access to thousands of verified maritime and industrial assets across Africa. Let's walk you through getting started — it only takes a few minutes.",
+    body:         "You now have access to thousands of verified offshore assets and equipment across Africa. Let's walk you through getting started — it only takes a few minutes.",
     cta:          "Let's Begin",
     ctaHref:      null,
     skip:         null,

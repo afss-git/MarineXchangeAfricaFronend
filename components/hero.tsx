@@ -125,7 +125,7 @@ export function Hero() {
           className={`text-white font-extrabold leading-[1.08] mb-4 sm:mb-5 ${visible ? "animate-fade-up delay-1" : "opacity-0"}`}
           style={{ fontSize: "clamp(30px, 5.5vw, 62px)", letterSpacing: "-0.03em" }}
         >
-          Africa&apos;s Premier Marketplace for Maritime &amp; Industrial Assets
+          Africa&apos;s Premier Marketplace for Offshore Assets and Equipment.
         </h1>
 
         {/* Subheading */}
