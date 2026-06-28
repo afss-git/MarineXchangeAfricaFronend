@@ -2642,6 +2642,7 @@ export interface VerificationAssignmentItem {
   assigned_at: string; updated_at: string
   product_status: string; seller_company: string | null
   full_history_access: boolean
+  thumbnail_url: string | null
 }
 
 export interface VerificationReportOut {

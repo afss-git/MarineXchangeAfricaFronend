@@ -874,8 +874,12 @@ export default function AgentMarketplacePage() {
                   className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => setExpanded(isOpen ? null : item.id)}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-ocean/10 flex items-center justify-center shrink-0">
-                    <Package className="w-5 h-5 text-ocean" />
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-ocean/10 flex items-center justify-center shrink-0">
+                    {item.thumbnail_url ? (
+                      <img src={item.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Package className="w-5 h-5 text-ocean" />
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
