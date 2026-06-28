@@ -78,7 +78,7 @@ export default withSentryConfig(nextConfig, {
   org: "dan-baqi-technologies",
 
   // The project name you created for the frontend in Sentry
-  project: "harbours360-frontend",
+  project: "javascript-nextjs",
 
   // Upload source maps to Sentry so stack traces show real line numbers.
   // Requires SENTRY_AUTH_TOKEN env var (get from Sentry → Settings → Auth Tokens).
